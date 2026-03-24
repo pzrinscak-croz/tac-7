@@ -126,4 +126,4 @@ After creating the documentation, add this entry to `.claude/commands/conditiona
 
 ## Report
 
-- IMPORTANT: Return exclusively the path to the documentation file created and nothing else.
+- IMPORTANT: Return exclusively the path to the documentation file created and nothing else. Do NOT wrap it in backticks or any markdown formatting. Return the raw plain text path only.

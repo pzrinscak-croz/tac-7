@@ -18,6 +18,7 @@ Environment Requirements:
 """
 
 import os
+import re
 import subprocess
 import sys
 from typing import Optional
@@ -55,6 +56,9 @@ app = FastAPI(
 )
 
 print(f"Starting ADW Webhook Trigger on port {PORT}")
+
+# Pattern matching workflow progress comments: {8-char-hex}_{agent_name}: or {8-char-hex}_{agent_name}_
+ADW_PROGRESS_PATTERN = re.compile(r'^[a-f0-9]{8}_\w+[_:]')
 
 
 @app.post("/gh-webhook")
@@ -113,6 +117,10 @@ async def github_webhook(request: Request):
             # Ignore comments from ADW bot to prevent loops
             if ADW_BOT_IDENTIFIER in comment_body:
                 print(f"Ignoring ADW bot comment to prevent loop")
+                workflow = None
+            # Ignore workflow progress comments (pattern: {adw_id}_{agent}: ...)
+            elif ADW_PROGRESS_PATTERN.match(comment_body):
+                print(f"Ignoring workflow progress comment to prevent loop")
                 workflow = None
             # Check if comment contains "adw_"
             elif "adw_" in comment_body.lower():

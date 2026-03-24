@@ -28,9 +28,9 @@ CLAUDE_PATH = os.getenv("CLAUDE_CODE_PATH", "claude")
 # Model selection mapping for slash commands
 # Maps each command to its model configuration for base and heavy model sets
 SLASH_COMMAND_MODEL_MAP: Final[Dict[SlashCommand, Dict[ModelSet, str]]] = {
-    "/classify_issue": {"base": "sonnet", "heavy": "sonnet"},
+    "/classify_issue": {"base": "haiku", "heavy": "haiku"},
     "/classify_adw": {"base": "sonnet", "heavy": "sonnet"},
-    "/generate_branch_name": {"base": "sonnet", "heavy": "sonnet"},
+    "/generate_branch_name": {"base": "haiku", "heavy": "haiku"},
     "/implement": {"base": "sonnet", "heavy": "opus"},
     "/test": {"base": "sonnet", "heavy": "sonnet"},
     "/resolve_failed_test": {"base": "sonnet", "heavy": "opus"},
@@ -38,8 +38,8 @@ SLASH_COMMAND_MODEL_MAP: Final[Dict[SlashCommand, Dict[ModelSet, str]]] = {
     "/resolve_failed_e2e_test": {"base": "sonnet", "heavy": "opus"},
     "/review": {"base": "sonnet", "heavy": "sonnet"},
     "/document": {"base": "sonnet", "heavy": "opus"},
-    "/commit": {"base": "sonnet", "heavy": "sonnet"},
-    "/pull_request": {"base": "sonnet", "heavy": "sonnet"},
+    "/commit": {"base": "haiku", "heavy": "haiku"},
+    "/pull_request": {"base": "haiku", "heavy": "haiku"},
     "/chore": {"base": "sonnet", "heavy": "opus"},
     "/bug": {"base": "sonnet", "heavy": "opus"},
     "/feature": {"base": "sonnet", "heavy": "opus"},
@@ -338,6 +338,14 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
     if request.dangerously_skip_permissions:
         cmd.append("--dangerously-skip-permissions")
 
+    # Add tools restriction if specified
+    if request.tools is not None:
+        cmd.extend(["--tools", request.tools])
+
+    # Add JSON schema if specified
+    if request.json_schema is not None:
+        cmd.extend(["--json-schema", request.json_schema])
+
     # Set up environment with only required variables
     env = get_claude_env()
 
@@ -380,7 +388,12 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
                         retry_code=RetryCode.ERROR_DURING_EXECUTION,
                     )
 
-                result_text = result_message.get("result", "")
+                # Prefer structured_output (from --json-schema) over result text
+                structured_output = result_message.get("structured_output")
+                if structured_output is not None:
+                    result_text = json.dumps(structured_output)
+                else:
+                    result_text = result_message.get("result", "")
 
                 # For error cases, truncate the output to prevent JSONL blobs
                 if is_error and len(result_text) > 1000:
@@ -553,6 +566,8 @@ def execute_template(request: AgentTemplateRequest) -> AgentPromptResponse:
         agent_name=request.agent_name,
         model=request.model,
         dangerously_skip_permissions=True,
+        tools=request.tools,
+        json_schema=request.json_schema,
         output_file=output_file,
         working_dir=request.working_dir,  # Pass through working_dir
     )

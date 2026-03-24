@@ -109,18 +109,24 @@ def classify_issue(
 ) -> Tuple[Optional[IssueClassSlashCommand], Optional[str]]:
     """Classify GitHub issue and return appropriate slash command.
     Returns (command, error_message) tuple."""
-
-    # Use the classify_issue slash command template with minimal payload
-    # Only include the essential fields: number, title, body
-    minimal_issue_json = issue.model_dump_json(
-        by_alias=True, include={"number", "title", "body"}
-    )
+    classifier_schema = json.dumps({
+        "type": "object",
+        "properties": {
+            "command": {
+                "type": "string",
+                "enum": ["/chore", "/bug", "/feature", "0"]
+            }
+        },
+        "required": ["command"]
+    })
 
     request = AgentTemplateRequest(
         agent_name=AGENT_CLASSIFIER,
         slash_command="/classify_issue",
-        args=[minimal_issue_json],
+        args=[issue.model_dump_json(indent=2, by_alias=True)],
         adw_id=adw_id,
+        tools="",
+        json_schema=classifier_schema,
     )
 
     logger.debug(f"Classifying issue: {issue.title}")
@@ -134,22 +140,18 @@ def classify_issue(
     if not response.success:
         return None, response.output
 
-    # Extract the classification from the response
-    output = response.output.strip()
-
-    # Look for the classification pattern in the output
-    # Claude might add explanation, so we need to extract just the command
-    classification_match = re.search(r"(/chore|/bug|/feature|/patch|0)", output)
-
-    if classification_match:
-        issue_command = classification_match.group(1)
-    else:
-        issue_command = output
+    # Parse JSON response from structured output
+    try:
+        result = json.loads(response.output.strip())
+        issue_command = result.get("command", "").strip()
+    except (json.JSONDecodeError, AttributeError):
+        # Fallback: try raw text
+        issue_command = response.output.strip()
 
     if issue_command == "0":
         return None, f"No command selected: {response.output}"
 
-    if issue_command not in ["/chore", "/bug", "/feature", "/patch"]:
+    if issue_command not in ["/chore", "/bug", "/feature"]:
         return None, f"Invalid command selected: {response.output}"
 
     return issue_command, None  # type: ignore

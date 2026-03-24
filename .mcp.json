@@ -6,6 +6,8 @@
         "@playwright/mcp@latest",
         "--isolated",
         "--config",
+        "--image-responses",
+        "omit",
         "./playwright-mcp-config.json"
       ]
     }

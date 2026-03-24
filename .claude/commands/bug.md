@@ -103,4 +103,4 @@ Extract the bug details from the `issue_json` variable (parse the JSON and use t
 
 ## Report
 
-- IMPORTANT: Return exclusively the path to the plan file created and nothing else.
+- IMPORTANT: Return exclusively the path to the plan file created and nothing else. Do NOT wrap it in backticks or any markdown formatting. Return the raw plain text path only.

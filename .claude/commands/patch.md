@@ -89,4 +89,4 @@ Execute every command to validate the patch is complete with zero regressions.
 
 ## Report
 
-- IMPORTANT: Return exclusively the path to the patch plan file created and nothing else.
+- IMPORTANT: Return exclusively the path to the patch plan file created and nothing else. Do NOT wrap it in backticks or any markdown formatting. Return the raw plain text path only.

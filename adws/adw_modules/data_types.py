@@ -150,8 +150,10 @@ class AgentPromptRequest(BaseModel):
     prompt: str
     adw_id: str
     agent_name: str = "ops"
-    model: Literal["sonnet", "opus"] = "sonnet"
+    model: Literal["haiku", "sonnet", "opus"] = "opus"
     dangerously_skip_permissions: bool = False
+    tools: Optional[str] = None
+    json_schema: Optional[str] = None
     output_file: str
     working_dir: Optional[str] = None
 
@@ -172,7 +174,9 @@ class AgentTemplateRequest(BaseModel):
     slash_command: SlashCommand
     args: List[str]
     adw_id: str
-    model: Literal["sonnet", "opus"] = "sonnet"
+    model: Literal["haiku", "sonnet", "opus"] = "sonnet"
+    tools: Optional[str] = None
+    json_schema: Optional[str] = None
     working_dir: Optional[str] = None
 
 
