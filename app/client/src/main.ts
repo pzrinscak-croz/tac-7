@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeFileUpload();
   initializeModal();
   initializeRandomQueryButton();
+  initializePageDropZones();
   loadDatabaseSchema();
 });
 
@@ -154,6 +155,45 @@ function initializeFileUpload() {
     if (files && files.length > 0) {
       handleFileUpload(files[0]);
     }
+  });
+}
+
+// Page-level drop zones for #query-section and #tables-section
+function initializePageDropZones() {
+  const sectionIds = ['query-section', 'tables-section'];
+
+  sectionIds.forEach(id => {
+    const section = document.getElementById(id) as HTMLElement;
+    section.classList.add('section-drop-target');
+
+    // Create overlay element dynamically
+    const overlay = document.createElement('div');
+    overlay.className = 'section-drop-overlay';
+    overlay.innerHTML = '<p>Drop to create table</p>';
+    section.appendChild(overlay);
+
+    section.addEventListener('dragover', (e) => {
+      if (!e.dataTransfer?.types.includes('Files')) return;
+      e.preventDefault();
+      section.classList.add('section-dragover');
+      overlay.classList.add('visible');
+    });
+
+    section.addEventListener('dragleave', (e) => {
+      if (section.contains(e.relatedTarget as Node)) return;
+      section.classList.remove('section-dragover');
+      overlay.classList.remove('visible');
+    });
+
+    section.addEventListener('drop', (e) => {
+      e.preventDefault();
+      section.classList.remove('section-dragover');
+      overlay.classList.remove('visible');
+      const file = e.dataTransfer?.files[0];
+      if (file) {
+        handleFileUpload(file);
+      }
+    });
   });
 }
 
