@@ -1,9 +1,23 @@
-"""Data types for GitHub API responses and Claude Code agent."""
+"""Data types for issue tracker API responses and Claude Code agent.
+
+The GitHub* type names are kept as aliases to the provider-agnostic types
+for backward compatibility.
+"""
 
 from datetime import datetime
 from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
 from enum import Enum
+
+# Re-export provider-agnostic types under legacy GitHub* names
+from .providers.base import (
+    Issue as GitHubIssue,
+    IssueComment as GitHubComment,
+    IssueListItem as GitHubIssueListItem,
+    IssueUser as GitHubUser,
+    IssueLabel as GitHubLabel,
+    IssueMilestone as GitHubMilestone,
+)
 
 
 # Retry codes for Claude Code execution errors
@@ -67,81 +81,6 @@ SlashCommand = Literal[
     # Installation/setup commands
     "/install_worktree",
 ]
-
-
-class GitHubUser(BaseModel):
-    """GitHub user model."""
-
-    id: Optional[str] = None  # Not always returned by GitHub API
-    login: str
-    name: Optional[str] = None
-    is_bot: bool = Field(default=False, alias="is_bot")
-
-
-class GitHubLabel(BaseModel):
-    """GitHub label model."""
-
-    id: str
-    name: str
-    color: str
-    description: Optional[str] = None
-
-
-class GitHubMilestone(BaseModel):
-    """GitHub milestone model."""
-
-    id: str
-    number: int
-    title: str
-    description: Optional[str] = None
-    state: str
-
-
-class GitHubComment(BaseModel):
-    """GitHub comment model."""
-
-    id: str
-    author: GitHubUser
-    body: str
-    created_at: datetime = Field(alias="createdAt")
-    updated_at: Optional[datetime] = Field(
-        None, alias="updatedAt"
-    )  # Not always returned
-
-
-class GitHubIssueListItem(BaseModel):
-    """GitHub issue model for list responses (simplified)."""
-
-    number: int
-    title: str
-    body: str
-    labels: List[GitHubLabel] = []
-    created_at: datetime = Field(alias="createdAt")
-    updated_at: datetime = Field(alias="updatedAt")
-
-    class Config:
-        populate_by_name = True
-
-
-class GitHubIssue(BaseModel):
-    """GitHub issue model."""
-
-    number: int
-    title: str
-    body: str
-    state: str
-    author: GitHubUser
-    assignees: List[GitHubUser] = []
-    labels: List[GitHubLabel] = []
-    milestone: Optional[GitHubMilestone] = None
-    comments: List[GitHubComment] = []
-    created_at: datetime = Field(alias="createdAt")
-    updated_at: datetime = Field(alias="updatedAt")
-    closed_at: Optional[datetime] = Field(None, alias="closedAt")
-    url: str
-
-    class Config:
-        populate_by_name = True
 
 
 class AgentPromptRequest(BaseModel):

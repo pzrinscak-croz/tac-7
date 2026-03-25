@@ -4,309 +4,78 @@
 # ///
 
 """
-GitHub Operations Module - AI Developer Workflow (ADW)
+Issue Tracker Facade - AI Developer Workflow (ADW)
 
-This module contains all GitHub-related operations including:
-- Issue fetching and manipulation
-- Comment posting
-- Repository path extraction
-- Issue status management
+Thin facade that delegates to the active provider (GitHub or GitLab).
+All existing imports continue to work unchanged:
+
+    from adw_modules.github import fetch_issue, make_issue_comment, ...
+
+Provider is selected via:
+    - ADW_PROVIDER env var ("github" or "gitlab")
+    - Auto-detection from git remotes
 """
 
-import subprocess
-import sys
-import os
-import json
 from typing import Dict, List, Optional
-from .data_types import GitHubIssue, GitHubIssueListItem, GitHubComment
 
-# Bot identifier to prevent webhook loops and filter bot comments
+from .providers import get_provider
+from .providers.base import Issue, IssueComment, IssueListItem
+
+# Re-export the bot identifier (used by many modules)
 ADW_BOT_IDENTIFIER = "[ADW-AGENTS]"
+
+# --- Legacy Pydantic type aliases for backward compatibility ---
+# These map the old GitHub* types to the new provider-agnostic types.
+# Existing code like `issue: GitHubIssue = fetch_issue(...)` continues to work.
+from .providers.base import Issue as GitHubIssue
+from .providers.base import IssueComment as GitHubComment
+from .providers.base import IssueListItem as GitHubIssueListItem
+from .providers.base import IssueUser as GitHubUser
+from .providers.base import IssueLabel as GitHubLabel
+from .providers.base import IssueMilestone as GitHubMilestone
 
 
 def get_github_env() -> Optional[dict]:
-    """Get environment with GitHub token set up. Returns None if no GITHUB_PAT.
-    
-    Subprocess env behavior:
-    - env=None → Inherits parent's environment (default)
-    - env={} → Empty environment (no variables)
-    - env=custom_dict → Only uses specified variables
-    
-    So this will work with gh authentication:
-    # These are equivalent:
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    result = subprocess.run(cmd, capture_output=True, text=True, env=None)
-    
-    But this will NOT work (no PATH, no auth):
-    result = subprocess.run(cmd, capture_output=True, text=True, env={})
-    """
-    github_pat = os.getenv("GITHUB_PAT")
-    if not github_pat:
-        return None
-    
-    # Only create minimal env with GitHub token
-    env = {
-        "GH_TOKEN": github_pat,
-        "PATH": os.environ.get("PATH", ""),
-    }
-    return env
+    """Legacy helper. Provider handles auth internally.
+    Returns None (inherit parent env) for backward compat with subprocess calls."""
+    return None
 
 
 def get_repo_url() -> str:
-    """Get GitHub repository URL from git remote."""
-    try:
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        raise ValueError(
-            "No git remote 'origin' found. Please ensure you're in a git repository with a remote."
-        )
-    except FileNotFoundError:
-        raise ValueError("git command not found. Please ensure git is installed.")
+    """Get repository URL from git remote."""
+    return get_provider().get_repo_url()
 
 
-def extract_repo_path(github_url: str) -> str:
-    """Extract owner/repo from GitHub URL."""
-    # Handle both https://github.com/owner/repo and https://github.com/owner/repo.git
-    return github_url.replace("https://github.com/", "").replace(".git", "")
+def extract_repo_path(url: str) -> str:
+    """Extract owner/repo from URL. Delegates to provider."""
+    return get_provider().get_repo_path()
 
 
-def fetch_issue(issue_number: str, repo_path: str) -> GitHubIssue:
-    """Fetch GitHub issue using gh CLI and return typed model."""
-    # Use JSON output for structured data
-    cmd = [
-        "gh",
-        "issue",
-        "view",
-        issue_number,
-        "-R",
-        repo_path,
-        "--json",
-        "number,title,body,state,author,assignees,labels,milestone,comments,createdAt,updatedAt,closedAt,url",
-    ]
-
-    # Set up environment with GitHub token if available
-    env = get_github_env()
-
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-
-        if result.returncode == 0:
-            # Parse JSON response into Pydantic model
-            issue_data = json.loads(result.stdout)
-            issue = GitHubIssue(**issue_data)
-
-            return issue
-        else:
-            print(result.stderr, file=sys.stderr)
-            sys.exit(result.returncode)
-    except FileNotFoundError:
-        print("Error: GitHub CLI (gh) is not installed.", file=sys.stderr)
-        print("\nTo install gh:", file=sys.stderr)
-        print("  - macOS: brew install gh", file=sys.stderr)
-        print(
-            "  - Linux: See https://github.com/cli/cli#installation",
-            file=sys.stderr,
-        )
-        print(
-            "  - Windows: See https://github.com/cli/cli#installation", file=sys.stderr
-        )
-        print("\nAfter installation, authenticate with: gh auth login", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error parsing issue data: {e}", file=sys.stderr)
-        sys.exit(1)
+def fetch_issue(issue_number: str, repo_path: str) -> Issue:
+    """Fetch issue using the active provider CLI."""
+    return get_provider().fetch_issue(issue_number, repo_path)
 
 
 def make_issue_comment(issue_id: str, comment: str) -> None:
-    """Post a comment to a GitHub issue using gh CLI."""
-    # Get repo information from git remote
-    github_repo_url = get_repo_url()
-    repo_path = extract_repo_path(github_repo_url)
-
-    # Ensure comment has ADW_BOT_IDENTIFIER to prevent webhook loops
-    if not comment.startswith(ADW_BOT_IDENTIFIER):
-        comment = f"{ADW_BOT_IDENTIFIER} {comment}"
-
-    # Build command
-    cmd = [
-        "gh",
-        "issue",
-        "comment",
-        issue_id,
-        "-R",
-        repo_path,
-        "--body",
-        comment,
-    ]
-
-    # Set up environment with GitHub token if available
-    env = get_github_env()
-
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-
-        if result.returncode == 0:
-            print(f"Successfully posted comment to issue #{issue_id}")
-        else:
-            print(f"Error posting comment: {result.stderr}", file=sys.stderr)
-            raise RuntimeError(f"Failed to post comment: {result.stderr}")
-    except Exception as e:
-        print(f"Error posting comment: {e}", file=sys.stderr)
-        raise
+    """Post a comment to an issue."""
+    get_provider().make_issue_comment(issue_id, comment)
 
 
 def mark_issue_in_progress(issue_id: str) -> None:
-    """Mark issue as in progress by adding label and comment."""
-    # Get repo information from git remote
-    github_repo_url = get_repo_url()
-    repo_path = extract_repo_path(github_repo_url)
-
-    # Add "in_progress" label
-    cmd = [
-        "gh",
-        "issue",
-        "edit",
-        issue_id,
-        "-R",
-        repo_path,
-        "--add-label",
-        "in_progress",
-    ]
-
-    # Set up environment with GitHub token if available
-    env = get_github_env()
-
-    # Try to add label (may fail if label doesn't exist)
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    if result.returncode != 0:
-        print(f"Note: Could not add 'in_progress' label: {result.stderr}")
-
-    # Post comment indicating work has started
-    # make_issue_comment(issue_id, "🚧 ADW is working on this issue...")
-
-    # Assign to self (optional)
-    cmd = [
-        "gh",
-        "issue",
-        "edit",
-        issue_id,
-        "-R",
-        repo_path,
-        "--add-assignee",
-        "@me",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    if result.returncode == 0:
-        print(f"Assigned issue #{issue_id} to self")
+    """Mark issue as in progress."""
+    get_provider().mark_issue_in_progress(issue_id)
 
 
-def fetch_open_issues(repo_path: str) -> List[GitHubIssueListItem]:
-    """Fetch all open issues from the GitHub repository."""
-    try:
-        cmd = [
-            "gh",
-            "issue",
-            "list",
-            "--repo",
-            repo_path,
-            "--state",
-            "open",
-            "--json",
-            "number,title,body,labels,createdAt,updatedAt",
-            "--limit",
-            "1000",
-        ]
-
-        # Set up environment with GitHub token if available
-        env = get_github_env()
-
-        # DEBUG level - not printing command
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True, env=env
-        )
-
-        issues_data = json.loads(result.stdout)
-        issues = [GitHubIssueListItem(**issue_data) for issue_data in issues_data]
-        print(f"Fetched {len(issues)} open issues")
-        return issues
-
-    except subprocess.CalledProcessError as e:
-        print(f"ERROR: Failed to fetch issues: {e.stderr}", file=sys.stderr)
-        return []
-    except json.JSONDecodeError as e:
-        print(f"ERROR: Failed to parse issues JSON: {e}", file=sys.stderr)
-        return []
+def fetch_open_issues(repo_path: str) -> List[IssueListItem]:
+    """Fetch all open issues."""
+    return get_provider().fetch_open_issues(repo_path)
 
 
 def fetch_issue_comments(repo_path: str, issue_number: int) -> List[Dict]:
     """Fetch all comments for a specific issue."""
-    try:
-        cmd = [
-            "gh",
-            "issue",
-            "view",
-            str(issue_number),
-            "--repo",
-            repo_path,
-            "--json",
-            "comments",
-        ]
-
-        # Set up environment with GitHub token if available
-        env = get_github_env()
-
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True, env=env
-        )
-        data = json.loads(result.stdout)
-        comments = data.get("comments", [])
-
-        # Sort comments by creation time
-        comments.sort(key=lambda c: c.get("createdAt", ""))
-
-        # DEBUG level - not printing
-        return comments
-
-    except subprocess.CalledProcessError as e:
-        print(
-            f"ERROR: Failed to fetch comments for issue #{issue_number}: {e.stderr}",
-            file=sys.stderr,
-        )
-        return []
-    except json.JSONDecodeError as e:
-        print(
-            f"ERROR: Failed to parse comments JSON for issue #{issue_number}: {e}",
-            file=sys.stderr,
-        )
-        return []
+    return get_provider().fetch_issue_comments(repo_path, issue_number)
 
 
-def find_keyword_from_comment(keyword: str, issue: GitHubIssue) -> Optional[GitHubComment]:
-    """Find the latest comment containing a specific keyword.
-    
-    Args:
-        keyword: The keyword to search for in comments
-        issue: The GitHub issue containing comments
-        
-    Returns:
-        The latest GitHubComment containing the keyword, or None if not found
-    """
-    # Sort comments by created_at date (newest first)
-    sorted_comments = sorted(issue.comments, key=lambda c: c.created_at, reverse=True)
-    
-    # Search through sorted comments (newest first)
-    for comment in sorted_comments:
-        # Skip ADW bot comments to prevent loops
-        if ADW_BOT_IDENTIFIER in comment.body:
-            continue
-            
-        if keyword in comment.body:
-            return comment
-    
-    return None
+def find_keyword_from_comment(keyword: str, issue: Issue) -> Optional[IssueComment]:
+    """Find the latest comment containing a specific keyword."""
+    return get_provider().find_keyword_from_comment(keyword, issue)

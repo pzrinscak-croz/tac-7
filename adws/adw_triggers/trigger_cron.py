@@ -33,18 +33,15 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from adw_modules.utils import get_safe_subprocess_env
 
-from adw_modules.github import fetch_open_issues, fetch_issue_comments, get_repo_url, extract_repo_path
+from adw_modules.github import fetch_open_issues, fetch_issue_comments
+from adw_modules.providers import get_provider
 
 # Load environment variables from current or parent directories
 load_dotenv()
 
-# Optional environment variables
-GITHUB_PAT = os.getenv("GITHUB_PAT")
-
-# Get repository URL from git remote
+# Get repository path from active provider
 try:
-    GITHUB_REPO_URL = get_repo_url()
-    REPO_PATH = extract_repo_path(GITHUB_REPO_URL)
+    REPO_PATH = get_provider().get_repo_path()
 except ValueError as e:
     print(f"ERROR: {e}")
     sys.exit(1)

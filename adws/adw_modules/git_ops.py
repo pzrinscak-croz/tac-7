@@ -1,6 +1,6 @@
 """Git operations for ADW composable architecture.
 
-Provides centralized git operations that build on top of github.py module.
+Provides centralized git operations that build on top of the provider abstraction.
 """
 
 import subprocess
@@ -8,7 +8,8 @@ import json
 import logging
 from typing import Optional, Tuple
 
-# Import GitHub functions from existing module
+from adw_modules.providers import get_provider
+# Keep facade imports for backward compat with other modules that import from here
 from adw_modules.github import get_repo_url, extract_repo_path, make_issue_comment
 
 
@@ -39,34 +40,8 @@ def push_branch(
 
 
 def check_pr_exists(branch_name: str) -> Optional[str]:
-    """Check if PR exists for branch. Returns PR URL if exists."""
-    # Use github.py functions to get repo info
-    try:
-        repo_url = get_repo_url()
-        repo_path = extract_repo_path(repo_url)
-    except Exception as e:
-        return None
-
-    result = subprocess.run(
-        [
-            "gh",
-            "pr",
-            "list",
-            "--repo",
-            repo_path,
-            "--head",
-            branch_name,
-            "--json",
-            "url",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        prs = json.loads(result.stdout)
-        if prs:
-            return prs[0]["url"]
-    return None
+    """Check if MR/PR exists for branch. Returns URL if exists."""
+    return get_provider().check_mr_exists(branch_name)
 
 
 def create_branch(
@@ -122,131 +97,33 @@ def commit_changes(
 
 
 def get_pr_number(branch_name: str) -> Optional[str]:
-    """Get PR number for a branch. Returns PR number if exists."""
-    # Use github.py functions to get repo info
-    try:
-        repo_url = get_repo_url()
-        repo_path = extract_repo_path(repo_url)
-    except Exception as e:
-        return None
-
-    result = subprocess.run(
-        [
-            "gh",
-            "pr",
-            "list",
-            "--repo",
-            repo_path,
-            "--head",
-            branch_name,
-            "--json",
-            "number",
-            "--limit",
-            "1",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        prs = json.loads(result.stdout)
-        if prs:
-            return str(prs[0]["number"])
-    return None
+    """Get MR/PR number for a branch. Returns number if exists."""
+    return get_provider().get_mr_number(branch_name)
 
 
 def approve_pr(pr_number: str, logger: logging.Logger) -> Tuple[bool, Optional[str]]:
-    """Approve a PR. Returns (success, error_message)."""
-    try:
-        repo_url = get_repo_url()
-        repo_path = extract_repo_path(repo_url)
-    except Exception as e:
-        return False, f"Failed to get repo info: {e}"
-
-    result = subprocess.run(
-        [
-            "gh",
-            "pr",
-            "review",
-            pr_number,
-            "--repo",
-            repo_path,
-            "--approve",
-            "--body",
-            "ADW Ship workflow approved this PR after validating all state fields.",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return False, result.stderr
-
-    logger.info(f"Approved PR #{pr_number}")
-    return True, None
+    """Approve a MR/PR. Returns (success, error_message)."""
+    success, error = get_provider().approve_mr(pr_number)
+    if success:
+        logger.info(f"Approved {get_provider().get_mr_term()} #{pr_number}")
+    return success, error
 
 
 def merge_pr(
     pr_number: str, logger: logging.Logger, merge_method: str = "squash"
 ) -> Tuple[bool, Optional[str]]:
-    """Merge a PR. Returns (success, error_message).
+    """Merge a MR/PR. Returns (success, error_message).
 
     Args:
-        pr_number: The PR number to merge
+        pr_number: The MR/PR number to merge
         logger: Logger instance
         merge_method: One of 'merge', 'squash', 'rebase' (default: 'squash')
     """
-    try:
-        repo_url = get_repo_url()
-        repo_path = extract_repo_path(repo_url)
-    except Exception as e:
-        return False, f"Failed to get repo info: {e}"
-
-    # First check if PR is mergeable
-    result = subprocess.run(
-        [
-            "gh",
-            "pr",
-            "view",
-            pr_number,
-            "--repo",
-            repo_path,
-            "--json",
-            "mergeable,mergeStateStatus",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return False, f"Failed to check PR status: {result.stderr}"
-
-    pr_status = json.loads(result.stdout)
-    if pr_status.get("mergeable") != "MERGEABLE":
-        return (
-            False,
-            f"PR is not mergeable. Status: {pr_status.get('mergeStateStatus', 'unknown')}",
-        )
-
-    # Merge the PR
-    merge_cmd = [
-        "gh",
-        "pr",
-        "merge",
-        pr_number,
-        "--repo",
-        repo_path,
-        f"--{merge_method}",
-    ]
-
-    # Add auto-merge body
-    merge_cmd.extend(
-        ["--body", "Merged by ADW Ship workflow after successful validation."]
-    )
-
-    result = subprocess.run(merge_cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        return False, result.stderr
-
-    logger.info(f"Merged PR #{pr_number} using {merge_method} method")
-    return True, None
+    provider = get_provider()
+    success, error = provider.merge_mr(pr_number, merge_method)
+    if success:
+        logger.info(f"Merged {provider.get_mr_term()} #{pr_number} using {merge_method} method")
+    return success, error
 
 
 def finalize_git_operations(
