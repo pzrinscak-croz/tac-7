@@ -1,8 +1,7 @@
 import pytest
-import os
 import sqlite3
 import tempfile
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 # Save real sqlite3.connect BEFORE any patching so lambdas can use it
