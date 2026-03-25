@@ -1,8 +1,10 @@
 import sqlite3
-from typing import Dict, Any
+from typing import Dict, Any, List
 from .sql_security import (
-    execute_query_safely, 
-    validate_sql_query, 
+    execute_query_safely,
+    validate_sql_query,
+    validate_identifier,
+    escape_identifier,
     SQLSecurityError
 )
 
@@ -57,6 +59,24 @@ def execute_sql_safely(sql_query: str) -> Dict[str, Any]:
             'columns': [],
             'error': str(e)
         }
+
+def sample_random_rows(db_path: str, table_name: str, limit: int = 10) -> List[dict]:
+    """
+    Sample up to `limit` random rows from a table.
+    Returns a list of row dicts. Returns [] if table is empty.
+    """
+    validate_identifier(table_name, "table")
+    escaped = escape_identifier(table_name)
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM {escaped} ORDER BY RANDOM() LIMIT ?", (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
 
 def get_database_schema() -> Dict[str, Any]:
     """

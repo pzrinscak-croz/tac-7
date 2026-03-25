@@ -76,6 +76,12 @@ interface RandomQueryResponse {
   error?: string;
 }
 
+// Random Data Generation Types
+interface GenerateRandomDataResponse {
+  rows_added: number;
+  error?: string;
+}
+
 // Health Check Types
 interface HealthCheckResponse {
   status: "ok" | "error";

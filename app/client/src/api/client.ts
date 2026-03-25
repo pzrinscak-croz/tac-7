@@ -113,6 +113,17 @@ export const api = {
     window.URL.revokeObjectURL(url);
   },
   
+  // Generate random data for a table
+  async generateRandomData(tableName: string): Promise<GenerateRandomDataResponse> {
+    return apiRequest<GenerateRandomDataResponse>('/generate-random-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ table_name: tableName })
+    });
+  },
+
   // Export query results as CSV
   async exportQueryResults(data: any[], columns: string[]): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/export/query`, {

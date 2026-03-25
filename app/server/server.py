@@ -21,15 +21,18 @@ from core.data_models import (
     ColumnInfo,
     RandomQueryResponse,
     ExportRequest,
-    QueryExportRequest
+    QueryExportRequest,
+    GenerateRandomDataRequest,
+    GenerateRandomDataResponse,
 )
 from core.file_processor import convert_csv_to_sqlite, convert_json_to_sqlite, convert_jsonl_to_sqlite
-from core.llm_processor import generate_sql, generate_random_query
-from core.sql_processor import execute_sql_safely, get_database_schema
+from core.llm_processor import generate_sql, generate_random_query, generate_random_data
+from core.sql_processor import execute_sql_safely, get_database_schema, sample_random_rows
 from core.insights import generate_insights
 from core.sql_security import (
     execute_query_safely,
     validate_identifier,
+    escape_identifier,
     check_table_exists,
     SQLSecurityError
 )
@@ -362,6 +365,92 @@ async def export_query_results(request: QueryExportRequest) -> Response:
         logger.error(f"[ERROR] Query export failed: {str(e)}")
         logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(500, f"Error exporting query results: {str(e)}")
+
+@app.post("/api/generate-random-data", response_model=GenerateRandomDataResponse)
+async def generate_random_data_endpoint(request: GenerateRandomDataRequest) -> GenerateRandomDataResponse:
+    """Generate synthetic data rows for a table using LLM"""
+    db_path = "db/database.db"
+    try:
+        # Validate table name
+        try:
+            validate_identifier(request.table_name, "table")
+        except SQLSecurityError as e:
+            raise HTTPException(400, str(e))
+
+        conn = sqlite3.connect(db_path)
+
+        # Check table exists
+        if not check_table_exists(conn, request.table_name):
+            conn.close()
+            raise HTTPException(404, f"Table '{request.table_name}' not found")
+
+        conn.close()
+
+        # Get schema for requested table
+        schema = get_database_schema()
+        table_schema = schema.get("tables", {}).get(request.table_name)
+        if not table_schema:
+            raise HTTPException(404, f"Schema for table '{request.table_name}' not found")
+
+        schema_info = {"columns": table_schema["columns"]}
+
+        # Sample random rows
+        sample_rows = sample_random_rows(db_path, request.table_name, limit=10)
+
+        if not sample_rows:
+            return GenerateRandomDataResponse(
+                rows_added=0,
+                error="Table must have at least 1 row to generate data"
+            )
+
+        # Call LLM to generate new rows
+        generated_rows = generate_random_data(request.table_name, schema_info, sample_rows)
+
+        # Get column names from schema for validation
+        schema_columns = set(table_schema["columns"].keys())
+
+        # Insert generated rows
+        rows_added = 0
+        conn = sqlite3.connect(db_path)
+        try:
+            for row in generated_rows:
+                if not isinstance(row, dict):
+                    continue
+
+                # Filter to only schema columns; fill missing nullable columns with None
+                filtered_row = {}
+                for col in schema_columns:
+                    filtered_row[col] = row.get(col, None)
+
+                col_names = list(filtered_row.keys())
+                col_escaped = ", ".join(escape_identifier(c) for c in col_names)
+                placeholders = ", ".join("?" for _ in col_names)
+                table_escaped = escape_identifier(request.table_name)
+                sql = f"INSERT INTO {table_escaped} ({col_escaped}) VALUES ({placeholders})"
+                values = [filtered_row[c] for c in col_names]
+
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(sql, values)
+                    rows_added += 1
+                except Exception as row_err:
+                    logger.warning(f"[WARN] Failed to insert generated row: {row_err}")
+
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = GenerateRandomDataResponse(rows_added=rows_added)
+        logger.info(f"[SUCCESS] Generated random data for '{request.table_name}': {rows_added} rows added")
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Random data generation failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        return GenerateRandomDataResponse(rows_added=0, error=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -86,6 +86,14 @@ class HealthCheckResponse(BaseModel):
     version: str = "1.0.0"
     uptime_seconds: float
 
+# Random Data Generation Models
+class GenerateRandomDataRequest(BaseModel):
+    table_name: str = Field(..., description="Name of the table to generate data for")
+
+class GenerateRandomDataResponse(BaseModel):
+    rows_added: int = 0
+    error: Optional[str] = None
+
 # Export Models
 class ExportRequest(BaseModel):
     table_name: str = Field(..., description="Name of the table to export")

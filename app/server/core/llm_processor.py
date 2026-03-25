@@ -1,5 +1,6 @@
 import os
-from typing import Dict, Any
+import json
+from typing import Dict, Any, List
 from openai import OpenAI
 from anthropic import Anthropic
 from core.data_models import QueryRequest
@@ -263,6 +264,142 @@ def generate_random_query(schema_info: Dict[str, Any]) -> str:
         return generate_random_query_with_anthropic(schema_info)
     else:
         raise ValueError("No LLM API key found. Please set either OPENAI_API_KEY or ANTHROPIC_API_KEY")
+
+def _parse_json_array_response(text: str) -> List[Dict[str, Any]]:
+    """
+    Parse a JSON array from LLM response, stripping markdown code fences if present.
+    """
+    text = text.strip()
+    # Strip markdown code fences
+    if text.startswith("```json"):
+        text = text[7:]
+    elif text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+    result = json.loads(text)
+    if not isinstance(result, list):
+        raise ValueError("Expected a JSON array but got a different type")
+    return result
+
+
+def generate_random_data_with_openai(table_name: str, schema_info: dict, sample_rows: List[dict]) -> List[dict]:
+    """
+    Generate synthetic data rows using OpenAI API.
+    """
+    try:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable not set")
+
+        client = OpenAI(api_key=api_key)
+
+        # Build column description with types
+        columns_desc = "\n".join(
+            f"  - {col_name}: {col_type}"
+            for col_name, col_type in schema_info.get("columns", {}).items()
+        )
+
+        sample_json = json.dumps(sample_rows, indent=2)
+
+        prompt = f"""Table name: {table_name}
+
+Schema (column name: data type):
+{columns_desc}
+
+Sample existing rows (use these to understand data patterns, formats, and value ranges):
+{sample_json}
+
+Generate exactly 10 new realistic synthetic rows for this table that match the observed patterns.
+Analyze the data types, value ranges, formats (emails, phone numbers, dates, etc.), and relationships between columns.
+Return ONLY a valid JSON array of 10 row objects. Each object must have exactly the same keys as the schema columns.
+Do not include any SQL, explanations, or markdown — only the raw JSON array."""
+
+        response = client.chat.completions.create(
+            model="gpt-4.1-2025-04-14",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a data generation expert. Return ONLY a valid JSON array of objects with no additional text, markdown, or SQL."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.8,
+            max_tokens=2000
+        )
+
+        text = response.choices[0].message.content.strip()
+        return _parse_json_array_response(text)
+
+    except Exception as e:
+        raise Exception(f"Error generating random data with OpenAI: {str(e)}")
+
+
+def generate_random_data_with_anthropic(table_name: str, schema_info: dict, sample_rows: List[dict]) -> List[dict]:
+    """
+    Generate synthetic data rows using Anthropic API.
+    """
+    try:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+
+        client = Anthropic(api_key=api_key)
+
+        # Build column description with types
+        columns_desc = "\n".join(
+            f"  - {col_name}: {col_type}"
+            for col_name, col_type in schema_info.get("columns", {}).items()
+        )
+
+        sample_json = json.dumps(sample_rows, indent=2)
+
+        prompt = f"""Table name: {table_name}
+
+Schema (column name: data type):
+{columns_desc}
+
+Sample existing rows (use these to understand data patterns, formats, and value ranges):
+{sample_json}
+
+Generate exactly 10 new realistic synthetic rows for this table that match the observed patterns.
+Analyze the data types, value ranges, formats (emails, phone numbers, dates, etc.), and relationships between columns.
+Return ONLY a valid JSON array of 10 row objects. Each object must have exactly the same keys as the schema columns.
+Do not include any SQL, explanations, or markdown — only the raw JSON array."""
+
+        response = client.messages.create(
+            model="claude-sonnet-4-0",
+            max_tokens=2000,
+            temperature=0.8,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            system="You are a data generation expert. Return ONLY a valid JSON array of objects with no additional text, markdown, or SQL."
+        )
+
+        text = response.content[0].text.strip()
+        return _parse_json_array_response(text)
+
+    except Exception as e:
+        raise Exception(f"Error generating random data with Anthropic: {str(e)}")
+
+
+def generate_random_data(table_name: str, schema_info: dict, sample_rows: List[dict]) -> List[dict]:
+    """
+    Route to appropriate LLM provider for random data generation.
+    Priority: 1) OpenAI API key exists, 2) Anthropic API key exists
+    """
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+
+    if openai_key:
+        return generate_random_data_with_openai(table_name, schema_info, sample_rows)
+    elif anthropic_key:
+        return generate_random_data_with_anthropic(table_name, schema_info, sample_rows)
+    else:
+        raise ValueError("No LLM API key found. Please set either OPENAI_API_KEY or ANTHROPIC_API_KEY")
+
 
 def generate_sql(request: QueryRequest, schema_info: Dict[str, Any]) -> str:
     """

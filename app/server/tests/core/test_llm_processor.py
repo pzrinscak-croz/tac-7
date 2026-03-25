@@ -1,11 +1,15 @@
 import pytest
 import os
+import json
 from unittest.mock import patch, MagicMock
 from core.llm_processor import (
-    generate_sql_with_openai, 
-    generate_sql_with_anthropic, 
+    generate_sql_with_openai,
+    generate_sql_with_anthropic,
     format_schema_for_prompt,
-    generate_sql
+    generate_sql,
+    generate_random_data_with_openai,
+    generate_random_data_with_anthropic,
+    generate_random_data,
 )
 from core.data_models import QueryRequest
 
@@ -285,3 +289,145 @@ class TestLLMProcessor:
             
             assert result == "SELECT * FROM sales"
             mock_openai_func.assert_called_once_with("Show sales data", schema_info)
+
+
+SAMPLE_SCHEMA = {"columns": {"id": "INTEGER", "name": "TEXT", "email": "TEXT", "age": "INTEGER"}}
+SAMPLE_ROWS = [
+    {"id": 1, "name": "Alice", "email": "alice@example.com", "age": 30},
+    {"id": 2, "name": "Bob", "email": "bob@example.com", "age": 25},
+]
+GENERATED_ROWS = [
+    {"id": 3, "name": "Carol", "email": "carol@example.com", "age": 28},
+] * 10
+
+
+class TestGenerateRandomData:
+
+    @patch('core.llm_processor.OpenAI')
+    def test_generate_random_data_with_openai_success(self, mock_openai_class):
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = json.dumps(GENERATED_ROWS)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
+            result = generate_random_data_with_openai("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert isinstance(result, list)
+        assert len(result) == 10
+        assert result[0]["name"] == "Carol"
+
+    @patch('core.llm_processor.OpenAI')
+    def test_generate_random_data_with_openai_strips_markdown(self, mock_openai_class):
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = f"```json\n{json.dumps(GENERATED_ROWS)}\n```"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
+            result = generate_random_data_with_openai("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert isinstance(result, list)
+        assert len(result) == 10
+
+    @patch('core.llm_processor.OpenAI')
+    def test_generate_random_data_with_openai_temperature(self, mock_openai_class):
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = json.dumps(GENERATED_ROWS)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
+            generate_random_data_with_openai("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert call_kwargs['temperature'] == 0.8
+
+    def test_generate_random_data_with_openai_no_api_key(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(Exception) as exc_info:
+                generate_random_data_with_openai("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+            assert "OPENAI_API_KEY environment variable not set" in str(exc_info.value)
+
+    @patch('core.llm_processor.Anthropic')
+    def test_generate_random_data_with_anthropic_success(self, mock_anthropic_class):
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.content[0].text = json.dumps(GENERATED_ROWS)
+        mock_client.messages.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test-key'}):
+            result = generate_random_data_with_anthropic("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert isinstance(result, list)
+        assert len(result) == 10
+
+    @patch('core.llm_processor.Anthropic')
+    def test_generate_random_data_with_anthropic_strips_markdown(self, mock_anthropic_class):
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.content[0].text = f"```\n{json.dumps(GENERATED_ROWS)}\n```"
+        mock_client.messages.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test-key'}):
+            result = generate_random_data_with_anthropic("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert isinstance(result, list)
+        assert len(result) == 10
+
+    @patch('core.llm_processor.Anthropic')
+    def test_generate_random_data_with_anthropic_temperature(self, mock_anthropic_class):
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.content[0].text = json.dumps(GENERATED_ROWS)
+        mock_client.messages.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test-key'}):
+            generate_random_data_with_anthropic("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_kwargs = mock_client.messages.create.call_args[1]
+        assert call_kwargs['temperature'] == 0.8
+
+    def test_generate_random_data_with_anthropic_no_api_key(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(Exception) as exc_info:
+                generate_random_data_with_anthropic("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+            assert "ANTHROPIC_API_KEY environment variable not set" in str(exc_info.value)
+
+    @patch('core.llm_processor.generate_random_data_with_openai')
+    def test_generate_random_data_routes_to_openai(self, mock_openai_func):
+        mock_openai_func.return_value = GENERATED_ROWS
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'key', 'ANTHROPIC_API_KEY': 'key2'}):
+            result = generate_random_data("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        mock_openai_func.assert_called_once_with("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+        assert result == GENERATED_ROWS
+
+    @patch('core.llm_processor.generate_random_data_with_anthropic')
+    def test_generate_random_data_routes_to_anthropic_fallback(self, mock_anthropic_func):
+        mock_anthropic_func.return_value = GENERATED_ROWS
+
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'key'}, clear=True):
+            result = generate_random_data("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        mock_anthropic_func.assert_called_once_with("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+        assert result == GENERATED_ROWS
+
+    def test_generate_random_data_raises_when_no_keys(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(ValueError) as exc_info:
+                generate_random_data("users", SAMPLE_SCHEMA, SAMPLE_ROWS)
+            assert "No LLM API key found" in str(exc_info.value)

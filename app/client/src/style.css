@@ -371,6 +371,33 @@ h2 {
   border-color: var(--primary-color);
 }
 
+/* Generate Data Button */
+.generate-data-button {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.813rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.generate-data-button:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+.generate-data-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* Loading States */
 .loading {
   display: inline-block;
