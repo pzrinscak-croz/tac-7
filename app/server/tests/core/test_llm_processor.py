@@ -41,7 +41,7 @@ class TestLLMProcessor:
             
             # Verify the API call parameters
             call_args = mock_client.chat.completions.create.call_args
-            assert call_args[1]['model'] == 'gpt-4.1-2025-04-14'
+            assert call_args[1]['model'] == 'gpt-4.1'
             assert call_args[1]['temperature'] == 0.1
             assert call_args[1]['max_tokens'] == 500
     

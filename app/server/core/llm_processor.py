@@ -41,7 +41,7 @@ SQL Query:"""
         
         # Call OpenAI API
         response = client.chat.completions.create(
-            model="gpt-4.1-2025-04-14",
+            model="gpt-4.1",
             messages=[
                 {"role": "system", "content": "You are a SQL expert. Convert natural language to SQL queries."},
                 {"role": "user", "content": prompt}
@@ -181,7 +181,7 @@ Natural language query:"""
         
         # Call OpenAI API
         response = client.chat.completions.create(
-            model="gpt-4.1-2025-04-14",
+            model="gpt-4.1",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that generates interesting questions about data."},
                 {"role": "user", "content": prompt}
