@@ -1,0 +1,202 @@
+[
+  {
+    "review_id": 1,
+    "user_id": 3,
+    "product_id": 1,
+    "rating": 5,
+    "title": "Best laptop I've owned",
+    "comment": "Powerful performance and great battery life. Worth every penny.",
+    "review_date": "2025-11-12",
+    "helpful_votes": 14
+  },
+  {
+    "review_id": 2,
+    "user_id": 1,
+    "product_id": 2,
+    "rating": 4,
+    "title": "Good wireless mouse",
+    "comment": "Comfortable grip and reliable connection. Wish it had more buttons.",
+    "review_date": "2025-11-15",
+    "helpful_votes": 7
+  },
+  {
+    "review_id": 3,
+    "user_id": 7,
+    "product_id": 4,
+    "rating": 5,
+    "title": "Game changer for my back",
+    "comment": "This standing desk is solid and the height adjustment is smooth. Highly recommend.",
+    "review_date": "2025-11-20",
+    "helpful_votes": 22
+  },
+  {
+    "review_id": 4,
+    "user_id": 5,
+    "product_id": 6,
+    "rating": 2,
+    "title": "Dead pixels after a week",
+    "comment": "Display quality was great initially but developed dead pixels. Had to return it.",
+    "review_date": "2025-11-25",
+    "helpful_votes": 31
+  },
+  {
+    "review_id": 5,
+    "user_id": 2,
+    "product_id": 8,
+    "rating": 5,
+    "title": "Perfect typing experience",
+    "comment": "Cherry MX switches feel amazing. The build quality is top notch.",
+    "review_date": "2025-11-28",
+    "helpful_votes": 18
+  },
+  {
+    "review_id": 6,
+    "user_id": 10,
+    "product_id": 20,
+    "rating": 4,
+    "title": "Great noise cancellation",
+    "comment": "Blocks out office noise perfectly. Slightly tight fit on larger heads.",
+    "review_date": "2025-12-05",
+    "helpful_votes": 9
+  },
+  {
+    "review_id": 7,
+    "user_id": 4,
+    "product_id": 3,
+    "rating": 3,
+    "title": "Decent but not amazing",
+    "comment": "Comfortable for short sessions but lumbar support could be better.",
+    "review_date": "2025-12-10",
+    "helpful_votes": 5
+  },
+  {
+    "review_id": 8,
+    "user_id": 6,
+    "product_id": 12,
+    "rating": 4,
+    "title": "Clear audio for meetings",
+    "comment": "Everyone can hear me clearly now. Setup was plug and play.",
+    "review_date": "2025-12-18",
+    "helpful_votes": 11
+  },
+  {
+    "review_id": 9,
+    "user_id": 9,
+    "product_id": 5,
+    "rating": 5,
+    "title": "Essential for my setup",
+    "comment": "All the ports I need in one small hub. No driver issues at all.",
+    "review_date": "2025-12-22",
+    "helpful_votes": 16
+  },
+  {
+    "review_id": 10,
+    "user_id": 12,
+    "product_id": 15,
+    "rating": 3,
+    "title": "It works",
+    "comment": "Basic HDMI cable that does the job. Nothing special but no complaints.",
+    "review_date": "2025-12-28",
+    "helpful_votes": 2
+  },
+  {
+    "review_id": 11,
+    "user_id": 1,
+    "product_id": 24,
+    "rating": 5,
+    "title": "Premium feel all around",
+    "comment": "Leather is genuine and the recline mechanism is buttery smooth. Best chair I've sat in.",
+    "review_date": "2026-01-08",
+    "helpful_votes": 27
+  },
+  {
+    "review_id": 12,
+    "user_id": 15,
+    "product_id": 10,
+    "rating": 4,
+    "title": "Simple and effective",
+    "comment": "Sturdy aluminum stand that keeps my laptop at eye level. Good airflow too.",
+    "review_date": "2026-01-12",
+    "helpful_votes": 8
+  },
+  {
+    "review_id": 13,
+    "user_id": 11,
+    "product_id": 27,
+    "rating": 4,
+    "title": "Fast scanning",
+    "comment": "Scans documents quickly with good OCR. Software interface could use improvement.",
+    "review_date": "2026-01-16",
+    "helpful_votes": 6
+  },
+  {
+    "review_id": 14,
+    "user_id": 14,
+    "product_id": 9,
+    "rating": 3,
+    "title": "Average webcam",
+    "comment": "Image quality is decent in good lighting but struggles in dim rooms.",
+    "review_date": "2026-01-22",
+    "helpful_votes": 4
+  },
+  {
+    "review_id": 15,
+    "user_id": 3,
+    "product_id": 22,
+    "rating": 4,
+    "title": "Convenient charging",
+    "comment": "Works well with my phone and earbuds. Charges a bit slower than wired.",
+    "review_date": "2026-01-26",
+    "helpful_votes": 10
+  },
+  {
+    "review_id": 16,
+    "user_id": 17,
+    "product_id": 16,
+    "rating": 5,
+    "title": "Saved my equipment",
+    "comment": "Power surge hit our building and this protector did its job. All devices safe.",
+    "review_date": "2026-02-01",
+    "helpful_votes": 35
+  },
+  {
+    "review_id": 17,
+    "user_id": 20,
+    "product_id": 1,
+    "rating": 4,
+    "title": "Solid workhorse",
+    "comment": "Handles everything I throw at it. Fan gets a bit loud under heavy load.",
+    "review_date": "2026-02-08",
+    "helpful_votes": 12
+  },
+  {
+    "review_id": 18,
+    "user_id": 16,
+    "product_id": 18,
+    "rating": 1,
+    "title": "Broke within days",
+    "comment": "The arm snapped at the joint after three days. Returning immediately.",
+    "review_date": "2026-02-14",
+    "helpful_votes": 19
+  },
+  {
+    "review_id": 19,
+    "user_id": 19,
+    "product_id": 11,
+    "rating": 4,
+    "title": "Nice mouse pad",
+    "comment": "Comfortable wrist rest and the surface tracks well with any mouse.",
+    "review_date": "2026-02-18",
+    "helpful_votes": 3
+  },
+  {
+    "review_id": 20,
+    "user_id": 8,
+    "product_id": 19,
+    "rating": 5,
+    "title": "Blazing fast transfers",
+    "comment": "Moved 500GB in under 10 minutes. Compact size is perfect for travel.",
+    "review_date": "2026-02-22",
+    "helpful_votes": 21
+  }
+]

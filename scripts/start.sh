@@ -1,7 +1,11 @@
 #!/bin/bash
 
 # Source port configuration if exists
-[ -f ".ports.env" ] && source .ports.env
+if [ -f ".ports.env" ]; then
+    set -a
+    source .ports.env
+    set +a
+fi
 
 # Port configuration with fallbacks
 SERVER_PORT=${BACKEND_PORT:-8000}
