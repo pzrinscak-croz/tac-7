@@ -1,7 +1,11 @@
 import './style.css'
 import { api } from './api/client'
+import { Chart, registerables } from 'chart.js'
+
+Chart.register(...registerables)
 
 // Global state
+let currentChart: Chart | null = null
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -185,13 +189,116 @@ async function loadDatabaseSchema() {
   }
 }
 
+// Column type detection utilities
+function getNumericColumns(results: Record<string, unknown>[], columns: string[]): string[] {
+  return columns.filter(col => {
+    const values = results.map(r => r[col]).filter(v => v !== null && v !== undefined && v !== '');
+    if (values.length === 0) return false;
+    return values.every(v => !isNaN(Number(v)));
+  });
+}
+
+function getCategoricalColumns(results: Record<string, unknown>[], columns: string[]): string[] {
+  const numericCols = getNumericColumns(results, columns);
+  const categorical = columns.filter(col => !numericCols.includes(col));
+  return categorical.length > 0 ? categorical : columns;
+}
+
+// Chart rendering
+function destroyChart() {
+  if (currentChart) {
+    currentChart.destroy();
+    currentChart = null;
+  }
+}
+
+function renderChart(
+  results: Record<string, unknown>[],
+  xColumn: string,
+  yColumn: string,
+  chartType: 'bar' | 'line' | 'pie',
+  canvasElement: HTMLCanvasElement
+) {
+  destroyChart();
+
+  let labels = results.map(r => String(r[xColumn] ?? ''));
+  let data = results.map(r => Number(r[yColumn]));
+
+  // Pie chart: group beyond 15 slices
+  if (chartType === 'pie' && data.length > 15) {
+    const indexed = data.map((v, i) => ({ v, i }));
+    indexed.sort((a, b) => b.v - a.v);
+    const top14 = indexed.slice(0, 14);
+    const rest = indexed.slice(14);
+    const otherSum = rest.reduce((sum, item) => sum + item.v, 0);
+    labels = top14.map(item => labels[item.i]);
+    labels.push('Other');
+    data = top14.map(item => item.v);
+    data.push(otherSum);
+  }
+
+  const palette = [
+    '#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe',
+    '#00f2fe', '#43e97b', '#fa709a', '#fee140', '#a18cd1',
+    '#fbc2eb', '#8fd3f4', '#a6c0fe', '#fccb90', '#d57eeb'
+  ];
+  const backgroundColors = data.map((_, i) => palette[i % palette.length]);
+
+  const isPie = chartType === 'pie';
+
+  currentChart = new Chart(canvasElement, {
+    type: chartType,
+    data: {
+      labels,
+      datasets: [{
+        label: yColumn,
+        data,
+        backgroundColor: isPie ? backgroundColors : palette[0],
+        borderColor: isPie ? '#fff' : palette[0],
+        borderWidth: isPie ? 2 : 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const value = context.parsed.y ?? context.parsed;
+              if (isPie) {
+                const total = (context.dataset.data as number[]).reduce((a, b) => a + (b as number), 0);
+                const pct = ((value as number) / total * 100).toFixed(1);
+                return `${context.label}: ${value} (${pct}%)`;
+              }
+              return `${yColumn}: ${value}`;
+            }
+          }
+        }
+      },
+      ...(isPie ? {} : {
+        scales: {
+          x: { title: { display: true, text: xColumn } },
+          y: { title: { display: true, text: yColumn }, beginAtZero: true }
+        }
+      })
+    }
+  });
+}
+
 // Display query results
 function displayResults(response: QueryResponse, query: string) {
   
+  // Clean up previous chart
+  destroyChart();
+  const existingChartSection = document.getElementById('chart-section');
+  if (existingChartSection) existingChartSection.remove();
+
   const resultsSection = document.getElementById('results-section') as HTMLElement;
   const sqlDisplay = document.getElementById('sql-display') as HTMLDivElement;
   const resultsContainer = document.getElementById('results-container') as HTMLDivElement;
-  
+
   resultsSection.style.display = 'block';
   
   // Display natural language query and SQL
@@ -252,10 +359,136 @@ function displayResults(response: QueryResponse, query: string) {
     // Remove toggle button from its current position
     toggleButton.remove();
     
+    // Add Visualize button if numeric columns exist
+    const numericCols = getNumericColumns(response.results, response.columns);
+    if (numericCols.length > 0) {
+      const categoricalCols = getCategoricalColumns(response.results, response.columns);
+      const visualizeButton = document.createElement('button');
+      visualizeButton.className = 'visualize-button secondary-button';
+      visualizeButton.textContent = 'Visualize';
+      visualizeButton.onclick = () => {
+        let chartSection = document.getElementById('chart-section');
+        if (chartSection) {
+          const isHidden = chartSection.style.display === 'none';
+          chartSection.style.display = isHidden ? 'block' : 'none';
+          visualizeButton.textContent = isHidden ? 'Hide Chart' : 'Visualize';
+          return;
+        }
+
+        // Create chart section
+        chartSection = document.createElement('div');
+        chartSection.id = 'chart-section';
+        chartSection.className = 'chart-section';
+
+        // Controls
+        const controls = document.createElement('div');
+        controls.className = 'chart-controls';
+
+        // Chart type selector
+        const typeGroup = document.createElement('div');
+        typeGroup.className = 'chart-control-group';
+        const typeLabel = document.createElement('label');
+        typeLabel.textContent = 'Chart Type';
+        const typeSelect = document.createElement('select');
+        typeSelect.id = 'chart-type-select';
+        ['Bar', 'Line', 'Pie'].forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.toLowerCase();
+          opt.textContent = t;
+          typeSelect.appendChild(opt);
+        });
+        typeGroup.appendChild(typeLabel);
+        typeGroup.appendChild(typeSelect);
+
+        // X-axis selector
+        const xGroup = document.createElement('div');
+        xGroup.className = 'chart-control-group';
+        const xLabel = document.createElement('label');
+        xLabel.textContent = 'X-Axis';
+        const xSelect = document.createElement('select');
+        xSelect.id = 'chart-x-select';
+        if (categoricalCols.length > 0) {
+          categoricalCols.forEach(col => {
+            const opt = document.createElement('option');
+            opt.value = col;
+            opt.textContent = col;
+            xSelect.appendChild(opt);
+          });
+        } else {
+          // All columns are numeric — use row index
+          const opt = document.createElement('option');
+          opt.value = '__row_index__';
+          opt.textContent = 'Row Index';
+          xSelect.appendChild(opt);
+        }
+        xGroup.appendChild(xLabel);
+        xGroup.appendChild(xSelect);
+
+        // Y-axis selector
+        const yGroup = document.createElement('div');
+        yGroup.className = 'chart-control-group';
+        const yLabel = document.createElement('label');
+        yLabel.textContent = 'Y-Axis';
+        const ySelect = document.createElement('select');
+        ySelect.id = 'chart-y-select';
+        numericCols.forEach(col => {
+          const opt = document.createElement('option');
+          opt.value = col;
+          opt.textContent = col;
+          ySelect.appendChild(opt);
+        });
+        // Default Y: first numeric column excluding id/rowid
+        const defaultY = numericCols.find(c => !['id', 'rowid'].includes(c.toLowerCase())) || numericCols[0];
+        ySelect.value = defaultY;
+        yGroup.appendChild(yLabel);
+        yGroup.appendChild(ySelect);
+
+        controls.appendChild(typeGroup);
+        controls.appendChild(xGroup);
+        controls.appendChild(yGroup);
+
+        // Canvas container
+        const canvasContainer = document.createElement('div');
+        canvasContainer.className = 'chart-canvas-container';
+        const canvas = document.createElement('canvas');
+        canvas.id = 'chart-canvas';
+        canvasContainer.appendChild(canvas);
+
+        chartSection.appendChild(controls);
+        chartSection.appendChild(canvasContainer);
+        resultsSection.appendChild(chartSection);
+
+        // Render function
+        const doRender = () => {
+          const xVal = xSelect.value;
+          const yVal = ySelect.value;
+          const type = typeSelect.value as 'bar' | 'line' | 'pie';
+
+          // Handle row index for all-numeric case
+          let renderResults = response.results;
+          let renderX = xVal;
+          if (xVal === '__row_index__') {
+            renderResults = response.results.map((r, i) => ({ ...r, __row_index__: i + 1 }));
+            renderX = '__row_index__';
+          }
+
+          renderChart(renderResults, renderX, yVal, type, canvas);
+        };
+
+        typeSelect.addEventListener('change', doRender);
+        xSelect.addEventListener('change', doRender);
+        ySelect.addEventListener('change', doRender);
+
+        doRender();
+        visualizeButton.textContent = 'Hide Chart';
+      };
+      buttonContainer.appendChild(visualizeButton);
+    }
+
     // Add buttons to container
     buttonContainer.appendChild(exportButton);
     buttonContainer.appendChild(toggleButton);
-    
+
     // Add container to results header
     resultsHeader.appendChild(buttonContainer);
   }
