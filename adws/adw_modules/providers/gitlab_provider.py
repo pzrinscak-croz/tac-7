@@ -328,6 +328,52 @@ class GitLabProvider(IssueProvider):
                 return str(mrs[0].get("iid"))
         return None
 
+    def upload_file(self, file_path: str, remote_name: Optional[str] = None) -> Optional[str]:
+        """Upload a file to the GitLab project and return markdown image reference.
+
+        Uses GitLab's project uploads API (POST /projects/:id/uploads).
+        The returned markdown can be embedded directly in issue comments.
+        """
+        if not os.path.exists(file_path):
+            print(f"Warning: File not found for upload: {file_path}", file=sys.stderr)
+            return None
+
+        repo_path = self.get_repo_path()
+        encoded_path = repo_path.replace("/", "%2F")
+        hostname = self._get_hostname()
+        token = os.getenv("GITLAB_TOKEN") or os.getenv("GITLAB_ACCESS_TOKEN")
+
+        if not token:
+            print("Warning: No GITLAB_TOKEN set, cannot upload files", file=sys.stderr)
+            return None
+
+        try:
+            result = subprocess.run(
+                [
+                    "curl", "-s",
+                    "--request", "POST",
+                    "--header", f"PRIVATE-TOKEN: {token}",
+                    "--form", f"file=@{file_path}",
+                    f"https://{hostname}/api/v4/projects/{encoded_path}/uploads",
+                ],
+                capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                print(f"Warning: Upload failed: {result.stderr}", file=sys.stderr)
+                return None
+
+            data = json.loads(result.stdout)
+            markdown = data.get("markdown")
+            if markdown:
+                print(f"Uploaded {os.path.basename(file_path)} to GitLab")
+                return markdown
+            else:
+                print(f"Warning: Upload response missing markdown field: {result.stdout}", file=sys.stderr)
+                return None
+        except Exception as e:
+            print(f"Warning: Error uploading file: {e}", file=sys.stderr)
+            return None
+
     def approve_mr(self, mr_number: str) -> tuple[bool, Optional[str]]:
         try:
             repo_path = self.get_repo_path()

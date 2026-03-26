@@ -177,6 +177,21 @@ class IssueProvider(ABC):
                 "No git remote 'origin' found. Please ensure you're in a git repository with a remote."
             )
 
+    def upload_file(self, file_path: str, remote_name: Optional[str] = None) -> Optional[str]:
+        """Upload a file and return a URL/markdown reference usable in issue comments.
+
+        Default implementation returns None (upload not supported).
+        Providers that support native uploads (e.g., GitLab) override this.
+
+        Args:
+            file_path: Absolute path to the file to upload.
+            remote_name: Optional display name for the file.
+
+        Returns:
+            Markdown image string if successful, None if not supported or failed.
+        """
+        return None
+
     def find_keyword_from_comment(self, keyword: str, issue: Issue) -> Optional[IssueComment]:
         """Find the latest comment containing a keyword, skipping bot comments."""
         sorted_comments = sorted(issue.comments, key=lambda c: c.created_at, reverse=True)

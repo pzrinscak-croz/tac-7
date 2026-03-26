@@ -395,6 +395,20 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
                 else:
                     result_text = result_message.get("result", "")
 
+                # Fallback: if result is empty but execution succeeded,
+                # extract text from the last assistant message
+                if not result_text and not is_error:
+                    for msg in reversed(messages):
+                        if msg.get("type") == "assistant" and msg.get("message"):
+                            content = msg["message"].get("content", [])
+                            if isinstance(content, list):
+                                for block in reversed(content):
+                                    if isinstance(block, dict) and block.get("type") == "text" and block.get("text", "").strip():
+                                        result_text = block["text"].strip()
+                                        break
+                            if result_text:
+                                break
+
                 # For error cases, truncate the output to prevent JSONL blobs
                 if is_error and len(result_text) > 1000:
                     result_text = truncate_output(result_text, max_length=800)

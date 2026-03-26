@@ -5,9 +5,9 @@
       "args": [
         "@playwright/mcp@latest",
         "--isolated",
-        "--config",
         "--image-responses",
         "omit",
+        "--config",
         "./playwright-mcp-config.json"
       ]
     }

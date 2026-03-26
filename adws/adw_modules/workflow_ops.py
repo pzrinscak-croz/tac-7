@@ -62,11 +62,23 @@ def extract_adw_info(text: str, temp_adw_id: str) -> ADWExtractionResult:
     Returns ADWExtractionResult with workflow_command, adw_id, and model_set."""
 
     # Use classify_adw to extract structured info
+    adw_schema = json.dumps({
+        "type": "object",
+        "properties": {
+            "adw_slash_command": {"type": "string"},
+            "adw_id": {"type": "string"},
+            "model_set": {"type": "string", "enum": ["base", "heavy"]}
+        },
+        "required": ["adw_slash_command", "model_set"]
+    })
+
     request = AgentTemplateRequest(
         agent_name="adw_classifier",
         slash_command="/classify_adw",
         args=[text],
         adw_id=temp_adw_id,
+        tools="",
+        json_schema=adw_schema,
     )
 
     try:
@@ -76,9 +88,9 @@ def extract_adw_info(text: str, temp_adw_id: str) -> ADWExtractionResult:
             print(f"Failed to classify ADW: {response.output}")
             return ADWExtractionResult()  # Empty result
 
-        # Parse JSON response using utility that handles markdown
+        # Parse JSON response from structured output
         try:
-            data = parse_json(response.output, dict)
+            data = json.loads(response.output.strip())
             adw_command = data.get("adw_slash_command", "").replace(
                 "/", ""
             )  # Remove slash

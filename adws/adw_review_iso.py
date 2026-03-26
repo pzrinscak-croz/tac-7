@@ -147,52 +147,65 @@ def upload_review_screenshots(
     worktree_path: str,
     logger: logging.Logger
 ) -> None:
-    """Upload screenshots to R2 and update review result with URLs.
-    
+    """Upload screenshots and update review result with URLs/markdown.
+
+    Tries provider-native upload first (e.g., GitLab project uploads),
+    then falls back to R2 if available.
+
     Args:
         review_result: Review result containing screenshot paths
         adw_id: ADW workflow ID
         worktree_path: Path to the worktree
         logger: Logger instance
-        
+
     Note:
         This modifies review_result in-place by setting screenshot_urls
         and updating issue.screenshot_url fields.
     """
     if not review_result.screenshots:
         return
-        
+
     logger.info(f"Uploading {len(review_result.screenshots)} screenshots")
-    uploader = R2Uploader(logger)
-    
+
+    from adw_modules.providers import get_provider
+    provider = get_provider()
+
     screenshot_urls = []
     for local_path in review_result.screenshots:
         # Convert relative path to absolute path within worktree
         abs_path = os.path.join(worktree_path, local_path)
-        
+
         if not os.path.exists(abs_path):
             logger.warning(f"Screenshot not found: {abs_path}")
             continue
-        
-        # Upload with a nice path
-        remote_path = f"adw/{adw_id}/review/{os.path.basename(local_path)}"
-        url = uploader.upload_file(abs_path, remote_path)
-        
+
+        url = None
+
+        # Try provider-native upload first (e.g., GitLab project uploads)
+        result = provider.upload_file(abs_path)
+        if result:
+            url = result
+            logger.info(f"Uploaded screenshot via {provider.get_provider_name()}: {os.path.basename(abs_path)}")
+        else:
+            # Fallback to R2
+            uploader = R2Uploader(logger)
+            remote_path = f"adw/{adw_id}/review/{os.path.basename(local_path)}"
+            url = uploader.upload_file(abs_path, remote_path)
+            if url:
+                logger.info(f"Uploaded screenshot to R2: {url}")
+
         if url:
             screenshot_urls.append(url)
-            logger.info(f"Uploaded screenshot to: {url}")
         else:
             logger.error(f"Failed to upload screenshot: {local_path}")
-            # Fallback to local path if upload fails
             screenshot_urls.append(local_path)
-    
+
     # Update review result with URLs
     review_result.screenshot_urls = screenshot_urls
-    
+
     # Update issues with their screenshot URLs
     for issue in review_result.review_issues:
         if issue.screenshot_path:
-            # Find corresponding URL
             for i, local_path in enumerate(review_result.screenshots):
                 if local_path == issue.screenshot_path and i < len(screenshot_urls):
                     issue.screenshot_url = screenshot_urls[i]
@@ -250,65 +263,65 @@ def resolve_blocker_issues(
         logger.info(f"Successfully resolved blocker {i}")
 
 
+def _is_image_reference(ref: str) -> bool:
+    """Check if a string is a usable image reference (URL or GitLab markdown)."""
+    return ref.startswith("http") or ref.startswith("![")
+
+
 def build_review_summary(review_result: ReviewResult) -> str:
-    """Build a formatted summary of the review results for GitHub comment.
-    
+    """Build a formatted summary of the review results for issue comment.
+
+    Handles both HTTP URLs (R2/GitHub) and GitLab markdown references
+    (e.g., ![alt](/uploads/...)) for inline image display.
+
     Args:
         review_result: The review result containing summary, issues, and screenshot URLs
-        
+
     Returns:
-        Formatted markdown string for GitHub comment
+        Formatted markdown string for issue comment
     """
-    summary_parts = [f"## 📊 Review Summary\n\n{review_result.review_summary}"]
-    
+    summary_parts = [f"## Review Summary\n\n{review_result.review_summary}"]
+
     # Add review issues grouped by severity
     if review_result.review_issues:
-        summary_parts.append("\n## 🔍 Issues Found")
-        
+        summary_parts.append("\n## Issues Found")
+
         # Group by severity
         blockers = [i for i in review_result.review_issues if i.issue_severity == "blocker"]
         tech_debts = [i for i in review_result.review_issues if i.issue_severity == "tech_debt"]
         skippables = [i for i in review_result.review_issues if i.issue_severity == "skippable"]
-        
-        if blockers:
-            summary_parts.append(f"\n### 🚨 Blockers ({len(blockers)})")
-            for issue in blockers:
+
+        for label, items in [("Blockers", blockers), ("Tech Debt", tech_debts), ("Skippable", skippables)]:
+            if not items:
+                continue
+            summary_parts.append(f"\n### {label} ({len(items)})")
+            for issue in items:
                 summary_parts.append(f"- **Issue {issue.review_issue_number}**: {issue.issue_description}")
                 summary_parts.append(f"  - Resolution: {issue.issue_resolution}")
-                if issue.screenshot_url and issue.screenshot_url.startswith("http"):
-                    summary_parts.append(f"  - ![Issue Screenshot]({issue.screenshot_url})")
-        
-        if tech_debts:
-            summary_parts.append(f"\n### ⚠️ Tech Debt ({len(tech_debts)})")
-            for issue in tech_debts:
-                summary_parts.append(f"- **Issue {issue.review_issue_number}**: {issue.issue_description}")
-                summary_parts.append(f"  - Resolution: {issue.issue_resolution}")
-                if issue.screenshot_url and issue.screenshot_url.startswith("http"):
-                    summary_parts.append(f"  - ![Issue Screenshot]({issue.screenshot_url})")
-        
-        if skippables:
-            summary_parts.append(f"\n### 💡 Skippable ({len(skippables)})")
-            for issue in skippables:
-                summary_parts.append(f"- **Issue {issue.review_issue_number}**: {issue.issue_description}")
-                summary_parts.append(f"  - Resolution: {issue.issue_resolution}")
-                if issue.screenshot_url and issue.screenshot_url.startswith("http"):
-                    summary_parts.append(f"  - ![Issue Screenshot]({issue.screenshot_url})")
-    
+                if issue.screenshot_url and _is_image_reference(issue.screenshot_url):
+                    if issue.screenshot_url.startswith("!["):
+                        summary_parts.append(f"  - {issue.screenshot_url}")
+                    else:
+                        summary_parts.append(f"  - ![Issue Screenshot]({issue.screenshot_url})")
+
     # Add screenshots section
     if review_result.screenshot_urls:
-        summary_parts.append(f"\n## 📸 Screenshots")
+        summary_parts.append(f"\n## Screenshots")
         summary_parts.append(f"Captured {len(review_result.screenshot_urls)} screenshots\n")
-        
-        # Use uploaded URLs to display as inline images
-        for i, screenshot_url in enumerate(review_result.screenshot_urls):
-            if screenshot_url.startswith("http"):
-                # Display as inline image
-                summary_parts.append(f"### Screenshot {i+1}")
-                summary_parts.append(f"![Screenshot {i+1}]({screenshot_url})\n")
+
+        for i, screenshot_ref in enumerate(review_result.screenshot_urls):
+            if screenshot_ref.startswith("!["):
+                # GitLab markdown reference - use directly
+                summary_parts.append(f"**Screenshot {i+1}:**")
+                summary_parts.append(f"{screenshot_ref}\n")
+            elif screenshot_ref.startswith("http"):
+                # HTTP URL (R2, etc.)
+                summary_parts.append(f"**Screenshot {i+1}:**")
+                summary_parts.append(f"![Screenshot {i+1}]({screenshot_ref})\n")
             else:
-                # Fallback to showing path if not a URL
-                summary_parts.append(f"- Screenshot {i+1}: `{screenshot_url}`")
-    
+                # Fallback to showing path
+                summary_parts.append(f"- Screenshot {i+1}: `{screenshot_ref}`")
+
     return "\n".join(summary_parts)
 
 
