@@ -3,12 +3,116 @@ import { api } from './api/client'
 
 // Global state
 
+// Query History helpers
+function loadHistory(): QueryHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem('query_history');
+    return raw ? (JSON.parse(raw) as QueryHistoryEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(entries: QueryHistoryEntry[]): void {
+  try {
+    localStorage.setItem('query_history', JSON.stringify(entries));
+  } catch {
+    // silently fail if localStorage is unavailable
+  }
+}
+
+function addToHistory(query: string, sql: string): void {
+  const trimmed = query.trim();
+  if (!trimmed) return;
+  const entries = loadHistory().filter((e) => e.query !== trimmed);
+  entries.unshift({ query: trimmed, sql, timestamp: Date.now() });
+  saveHistory(entries.slice(0, 20));
+}
+
+function removeFromHistory(query: string): void {
+  saveHistory(loadHistory().filter((e) => e.query !== query));
+}
+
+function clearHistory(): void {
+  saveHistory([]);
+}
+
+function renderHistoryList(listEl: HTMLUListElement): void {
+  const entries = loadHistory();
+  listEl.innerHTML = '';
+  if (entries.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'history-empty';
+    empty.textContent = 'No recent queries';
+    listEl.appendChild(empty);
+    return;
+  }
+  entries.forEach((entry) => {
+    const li = document.createElement('li');
+    li.className = 'history-item';
+
+    const text = document.createElement('span');
+    text.className = 'history-item-text';
+    text.textContent = entry.query;
+    text.title = entry.query;
+
+    const time = document.createElement('span');
+    time.className = 'history-item-time';
+    time.textContent = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const remove = document.createElement('button');
+    remove.className = 'history-item-remove';
+    remove.textContent = '×';
+    remove.title = 'Remove';
+    remove.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeFromHistory(entry.query);
+      renderHistoryList(listEl);
+    });
+
+    li.appendChild(text);
+    li.appendChild(time);
+    li.appendChild(remove);
+    li.addEventListener('click', () => {
+      const input = document.getElementById('query-input') as HTMLTextAreaElement;
+      input.value = entry.query;
+      const dropdown = document.getElementById('history-dropdown') as HTMLDivElement;
+      dropdown.classList.add('hidden');
+      document.getElementById('query-button')?.click();
+    });
+
+    listEl.appendChild(li);
+  });
+}
+
+function initializeQueryHistory(): void {
+  const toggleButton = document.getElementById('history-toggle-button') as HTMLButtonElement;
+  const dropdown = document.getElementById('history-dropdown') as HTMLDivElement;
+  const listEl = document.getElementById('history-list') as HTMLUListElement;
+  const clearAll = document.getElementById('history-clear-all') as HTMLButtonElement;
+
+  if (!toggleButton || !dropdown || !listEl || !clearAll) return;
+
+  toggleButton.addEventListener('click', () => {
+    const isHidden = dropdown.classList.toggle('hidden');
+    if (!isHidden) {
+      renderHistoryList(listEl);
+    }
+  });
+
+  clearAll.addEventListener('click', () => {
+    clearHistory();
+    renderHistoryList(listEl);
+  });
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
   initializeRandomQueryButton();
+  initializeQueryHistory();
   loadDatabaseSchema();
 });
 
@@ -50,7 +154,16 @@ function initializeQueryInput() {
       });
       
       displayResults(response, query);
-      
+
+      if (!response.error) {
+        addToHistory(query, response.sql);
+        const listEl = document.getElementById('history-list') as HTMLUListElement;
+        const dropdown = document.getElementById('history-dropdown') as HTMLDivElement;
+        if (listEl && dropdown && !dropdown.classList.contains('hidden')) {
+          renderHistoryList(listEl);
+        }
+      }
+
       // Clear the input field on success
       queryInput.value = '';
     } catch (error) {

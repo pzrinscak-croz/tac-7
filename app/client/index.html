@@ -13,16 +13,24 @@
         
         <!-- Query Input Section -->
         <section id="query-section" class="query-section">
-          <textarea 
-            id="query-input" 
+          <textarea
+            id="query-input"
             placeholder="Ask a question about your data... (e.g., 'Show me users who signed up last week')"
             rows="4"
             autofocus
           ></textarea>
+          <div id="history-dropdown" class="history-dropdown hidden">
+            <div class="history-header">
+              <span class="history-title">Recent Queries</span>
+              <button id="history-clear-all" class="history-clear-all">Clear all</button>
+            </div>
+            <ul id="history-list" class="history-list"></ul>
+          </div>
           <div class="query-controls">
             <div class="query-controls-left">
               <button id="query-button" class="primary-button">Query</button>
               <button id="upload-data-button" class="secondary-button">Upload</button>
+              <button id="history-toggle-button" class="secondary-button">History</button>
             </div>
             <button id="generate-random-query-button" class="secondary-button">Generate Random Query</button>
           </div>

@@ -84,3 +84,10 @@ interface HealthCheckResponse {
   version: string;
   uptime_seconds: number;
 }
+
+// Query History Types
+interface QueryHistoryEntry {
+  query: string;
+  sql: string;
+  timestamp: number; // Unix ms
+}
