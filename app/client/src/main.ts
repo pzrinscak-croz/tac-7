@@ -1,7 +1,11 @@
 import './style.css'
 import { api } from './api/client'
+import { Chart, registerables } from 'chart.js'
+
+Chart.register(...registerables)
 
 // Global state
+let currentChart: Chart | null = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -215,13 +219,21 @@ function displayResults(response: QueryResponse, query: string) {
     resultsContainer.appendChild(table);
   }
   
+  // Reset chart panel on new query
+  const chartPanel = document.getElementById('chart-panel') as HTMLElement;
+  chartPanel.style.display = 'none';
+  if (currentChart) {
+    currentChart.destroy();
+    currentChart = null;
+  }
+
   // Initialize toggle button
   const toggleButton = document.getElementById('toggle-results') as HTMLButtonElement;
   toggleButton.addEventListener('click', () => {
     resultsContainer.style.display = resultsContainer.style.display === 'none' ? 'block' : 'none';
     toggleButton.textContent = resultsContainer.style.display === 'none' ? 'Show' : 'Hide';
   });
-  
+
   // Add export button if results exist
   if (!response.error && response.results.length > 0) {
     const resultsHeader = document.querySelector('.results-header') as HTMLElement;
@@ -249,13 +261,31 @@ function displayResults(response: QueryResponse, query: string) {
       }
     };
     
+    // Create visualize button
+    const visualizeButton = document.createElement('button');
+    visualizeButton.className = 'visualize-button secondary-button';
+    visualizeButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="8" width="3" height="7"/><rect x="5.5" y="4" width="3" height="11"/><rect x="10" y="1" width="3" height="14"/></svg> Visualize';
+    let chartInitialized = false;
+    visualizeButton.onclick = () => {
+      if (chartPanel.style.display === 'none') {
+        chartPanel.style.display = 'block';
+        if (!chartInitialized) {
+          initializeChartPanel(response);
+          chartInitialized = true;
+        }
+      } else {
+        chartPanel.style.display = 'none';
+      }
+    };
+
     // Remove toggle button from its current position
     toggleButton.remove();
-    
+
     // Add buttons to container
     buttonContainer.appendChild(exportButton);
+    buttonContainer.appendChild(visualizeButton);
     buttonContainer.appendChild(toggleButton);
-    
+
     // Add container to results header
     resultsHeader.appendChild(buttonContainer);
   }
@@ -518,6 +548,191 @@ function getTypeEmoji(type: string): string {
   
   // Default
   return '📊';
+}
+
+// Chart visualization helpers
+const CHART_COLORS = [
+  '#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe',
+  '#00f2fe', '#43e97b', '#fa709a', '#fee140', '#a18cd1',
+  '#fbc2eb', '#8fd3f4', '#a6c0fe', '#d4fc79', '#96e6a1'
+];
+
+function classifyColumns(results: Record<string, any>[], columns: string[]): { numericColumns: string[], categoricalColumns: string[] } {
+  const numericColumns: string[] = [];
+  const categoricalColumns: string[] = [];
+  const idPattern = /^(id|rowid)$|_id$/i;
+
+  for (const col of columns) {
+    let numericCount = 0;
+    let totalNonNull = 0;
+
+    for (const row of results) {
+      const val = row[col];
+      if (val === null || val === undefined || val === '') continue;
+      totalNonNull++;
+      if (!isNaN(parseFloat(String(val)))) numericCount++;
+    }
+
+    const isNumeric = totalNonNull > 0 && numericCount / totalNonNull > 0.5;
+    if (isNumeric && !idPattern.test(col)) {
+      numericColumns.push(col);
+    } else {
+      categoricalColumns.push(col);
+    }
+  }
+
+  return { numericColumns, categoricalColumns };
+}
+
+function getDefaultAxes(numericColumns: string[], categoricalColumns: string[]): { xColumn: string | null, yColumn: string | null } {
+  const xColumn = categoricalColumns.length > 0 ? categoricalColumns[0] : (numericColumns.length > 0 ? numericColumns[0] : null);
+  const yColumn = numericColumns.length > 0 ? numericColumns[0] : null;
+  return { xColumn, yColumn };
+}
+
+function renderChart(results: Record<string, any>[], chartType: string, xColumn: string, yColumn: string) {
+  const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
+  if (currentChart) {
+    currentChart.destroy();
+    currentChart = null;
+  }
+
+  const labels: string[] = [];
+  const values: number[] = [];
+
+  for (const row of results) {
+    const label = String(row[xColumn] ?? '');
+    const val = parseFloat(String(row[yColumn]));
+    if (isNaN(val)) continue;
+    labels.push(label);
+    values.push(val);
+  }
+
+  let finalLabels = labels;
+  let finalValues = values;
+  let backgroundColors: string[] = CHART_COLORS;
+
+  if (chartType === 'pie') {
+    // Aggregate by label for pie charts
+    const aggregated = new Map<string, number>();
+    for (let i = 0; i < labels.length; i++) {
+      aggregated.set(labels[i], (aggregated.get(labels[i]) || 0) + values[i]);
+    }
+    const sorted = [...aggregated.entries()].sort((a, b) => b[1] - a[1]);
+
+    if (sorted.length > 15) {
+      const top = sorted.slice(0, 15);
+      const otherSum = sorted.slice(15).reduce((sum, [, v]) => sum + v, 0);
+      finalLabels = top.map(([k]) => k);
+      finalValues = top.map(([, v]) => v);
+      finalLabels.push('Other');
+      finalValues.push(otherSum);
+    } else {
+      finalLabels = sorted.map(([k]) => k);
+      finalValues = sorted.map(([, v]) => v);
+    }
+    backgroundColors = finalLabels.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
+  }
+
+  currentChart = new Chart(canvas, {
+    type: chartType as any,
+    data: {
+      labels: finalLabels,
+      datasets: [{
+        label: yColumn,
+        data: finalValues,
+        backgroundColor: chartType === 'pie' ? backgroundColors : CHART_COLORS[0],
+        borderColor: chartType === 'line' ? CHART_COLORS[0] : undefined,
+        borderWidth: chartType === 'pie' ? 1 : undefined,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: (context: any) => {
+              const val = context.parsed.y ?? context.parsed;
+              if (chartType === 'pie') {
+                const total = finalValues.reduce((a, b) => a + b, 0);
+                const pct = ((Number(context.parsed) / total) * 100).toFixed(1);
+                return `${context.label}: ${context.parsed} (${pct}%)`;
+              }
+              return `${yColumn}: ${val}`;
+            }
+          }
+        }
+      },
+      ...(chartType !== 'pie' ? {
+        scales: {
+          x: { title: { display: true, text: xColumn } },
+          y: { title: { display: true, text: yColumn }, beginAtZero: true }
+        }
+      } : {})
+    }
+  });
+}
+
+function initializeChartPanel(response: QueryResponse) {
+  const { numericColumns, categoricalColumns } = classifyColumns(response.results, response.columns);
+  const chartCanvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
+  const noNumericMsg = document.getElementById('no-numeric-message') as HTMLElement;
+  const xSelect = document.getElementById('x-axis-select') as HTMLSelectElement;
+  const ySelect = document.getElementById('y-axis-select') as HTMLSelectElement;
+  const typeSelect = document.getElementById('chart-type-select') as HTMLSelectElement;
+
+  if (numericColumns.length === 0) {
+    chartCanvas.style.display = 'none';
+    noNumericMsg.style.display = 'block';
+    return;
+  }
+
+  chartCanvas.style.display = 'block';
+  noNumericMsg.style.display = 'none';
+
+  const { xColumn, yColumn } = getDefaultAxes(numericColumns, categoricalColumns);
+
+  // Populate X-axis dropdown with all columns (categorical first, then numeric)
+  xSelect.innerHTML = '';
+  const allXOptions = [...categoricalColumns, ...numericColumns];
+  for (const col of allXOptions) {
+    const opt = document.createElement('option');
+    opt.value = col;
+    opt.textContent = col;
+    if (col === xColumn) opt.selected = true;
+    xSelect.appendChild(opt);
+  }
+
+  // Populate Y-axis dropdown with only numeric columns
+  ySelect.innerHTML = '';
+  for (const col of numericColumns) {
+    const opt = document.createElement('option');
+    opt.value = col;
+    opt.textContent = col;
+    if (col === yColumn) opt.selected = true;
+    ySelect.appendChild(opt);
+  }
+
+  const rerender = () => {
+    renderChart(response.results, typeSelect.value, xSelect.value, ySelect.value);
+  };
+
+  // Remove old listeners by replacing elements
+  const newTypeSelect = typeSelect.cloneNode(true) as HTMLSelectElement;
+  typeSelect.parentNode!.replaceChild(newTypeSelect, typeSelect);
+  newTypeSelect.addEventListener('change', rerender);
+
+  const newXSelect = xSelect.cloneNode(true) as HTMLSelectElement;
+  xSelect.parentNode!.replaceChild(newXSelect, xSelect);
+  newXSelect.addEventListener('change', rerender);
+
+  const newYSelect = ySelect.cloneNode(true) as HTMLSelectElement;
+  ySelect.parentNode!.replaceChild(newYSelect, ySelect);
+  newYSelect.addEventListener('change', rerender);
+
+  renderChart(response.results, typeSelect.value, xColumn!, yColumn!);
 }
 
 // Load sample data

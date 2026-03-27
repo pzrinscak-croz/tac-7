@@ -543,3 +543,64 @@ h2 {
 .divider::after {
   right: 0;
 }
+
+/* Chart Visualization */
+.chart-panel {
+  background: #f8f9fa;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  min-height: 300px;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.chart-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.813rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.chart-controls select {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: white;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.chart-controls select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+#chart-canvas {
+  min-height: 300px;
+  width: 100%;
+}
+
+.no-numeric-message {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 2rem;
+  margin: 0;
+}
+
+.visualize-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}

@@ -36,6 +36,28 @@
           </div>
           <div id="sql-display" class="sql-display"></div>
           <div id="results-container" class="results-container"></div>
+          <div id="chart-panel" class="chart-panel" style="display: none;">
+            <div class="chart-controls">
+              <label>
+                Chart Type
+                <select id="chart-type-select">
+                  <option value="bar">Bar</option>
+                  <option value="line">Line</option>
+                  <option value="pie">Pie</option>
+                </select>
+              </label>
+              <label>
+                X-Axis
+                <select id="x-axis-select"></select>
+              </label>
+              <label>
+                Y-Axis
+                <select id="y-axis-select"></select>
+              </label>
+            </div>
+            <canvas id="chart-canvas"></canvas>
+            <p id="no-numeric-message" class="no-numeric-message" style="display: none;">No numeric columns available for charting.</p>
+          </div>
         </section>
 
         <!-- Current Tables Section -->
