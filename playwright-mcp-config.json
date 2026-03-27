@@ -6,7 +6,7 @@
     },
     "contextOptions": {
       "recordVideo": {
-        "dir": "./videos",
+        "dir": "/Users/pzrinscak/dev/idd/tac-7/trees/cd70d3cd/videos",
         "size": {
           "width": 1920,
           "height": 1080
