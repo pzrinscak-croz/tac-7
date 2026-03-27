@@ -5,9 +5,6 @@ Uses a temporary SQLite file to test all four CRUD operations.
 
 import pytest
 import sqlite3
-import tempfile
-import os
-from unittest.mock import patch
 
 import core.table_editor as table_editor
 

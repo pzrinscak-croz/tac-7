@@ -7,7 +7,6 @@ and parameterized ? placeholders for all values.
 import sqlite3
 import math
 import logging
-from typing import Any
 
 from .sql_security import validate_identifier, escape_identifier, SQLSecurityError
 
