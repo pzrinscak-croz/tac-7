@@ -2,12 +2,15 @@ import './style.css'
 import { api } from './api/client'
 
 // Global state
+let previewTableName = '';
+let previewCurrentPage = 1;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
+  initializePreviewModal();
   initializeRandomQueryButton();
   loadDatabaseSchema();
 });
@@ -185,6 +188,217 @@ async function loadDatabaseSchema() {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// Preview Modal
+// ─────────────────────────────────────────────────────────────
+
+function initializePreviewModal() {
+  const modal = document.getElementById('preview-modal') as HTMLElement;
+  const closeBtn = document.getElementById('close-preview-modal') as HTMLButtonElement;
+  const addRowBtn = document.getElementById('add-row-btn') as HTMLButtonElement;
+  const prevBtn = document.getElementById('prev-page-btn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('next-page-btn') as HTMLButtonElement;
+
+  closeBtn.addEventListener('click', closePreviewModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closePreviewModal();
+  });
+
+  addRowBtn.addEventListener('click', addRow);
+  prevBtn.addEventListener('click', () => loadPreviewPage(previewCurrentPage - 1));
+  nextBtn.addEventListener('click', () => loadPreviewPage(previewCurrentPage + 1));
+}
+
+function openPreviewModal(tableName: string) {
+  previewTableName = tableName;
+  previewCurrentPage = 1;
+
+  const modal = document.getElementById('preview-modal') as HTMLElement;
+  const title = document.getElementById('preview-modal-title') as HTMLElement;
+  title.textContent = tableName;
+  modal.style.display = 'flex';
+
+  loadPreviewPage(1);
+}
+
+function closePreviewModal() {
+  const modal = document.getElementById('preview-modal') as HTMLElement;
+  modal.style.display = 'none';
+  previewTableName = '';
+  previewCurrentPage = 1;
+  setPreviewStatus('');
+}
+
+async function loadPreviewPage(page: number) {
+  try {
+    const data = await api.getTablePreview(previewTableName, page);
+    if (data.error) {
+      setPreviewStatus(data.error);
+      return;
+    }
+
+    previewCurrentPage = data.page;
+
+    renderPreviewTable(data);
+
+    const pageInfo = document.getElementById('page-info') as HTMLElement;
+    pageInfo.textContent = `Page ${data.page} of ${data.total_pages}`;
+
+    const prevBtn = document.getElementById('prev-page-btn') as HTMLButtonElement;
+    const nextBtn = document.getElementById('next-page-btn') as HTMLButtonElement;
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= data.total_pages;
+
+    setPreviewStatus('');
+  } catch (err) {
+    setPreviewStatus(err instanceof Error ? err.message : 'Failed to load preview');
+  }
+}
+
+function renderPreviewTable(data: TablePreviewResponse) {
+  const table = document.getElementById('preview-table') as HTMLTableElement;
+  table.innerHTML = '';
+
+  // Header — skip "rowid" column in display
+  const visibleColumns = data.columns.filter(c => c !== 'rowid');
+  const rowidIndex = data.columns.indexOf('rowid');
+
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  visibleColumns.forEach(col => {
+    const th = document.createElement('th');
+    th.textContent = col;
+    headerRow.appendChild(th);
+  });
+  // Action column header
+  const thAction = document.createElement('th');
+  thAction.textContent = '';
+  headerRow.appendChild(thAction);
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // Body
+  const tbody = document.createElement('tbody');
+  data.rows.forEach(row => {
+    const rowid = rowidIndex >= 0 ? Number(row[rowidIndex]) : -1;
+    const tr = document.createElement('tr');
+
+    data.columns.forEach((col, idx) => {
+      if (col === 'rowid') return;
+      const td = document.createElement('td');
+      td.textContent = row[idx] !== null && row[idx] !== undefined ? String(row[idx]) : '';
+      td.dataset['col'] = col;
+      td.addEventListener('click', () => startCellEdit(td, rowid, col));
+      tr.appendChild(td);
+    });
+
+    // Delete button cell
+    const tdAction = document.createElement('td');
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-row-btn';
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => deleteRow(rowid));
+    tdAction.appendChild(delBtn);
+    tr.appendChild(tdAction);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+function startCellEdit(td: HTMLTableCellElement, rowid: number, colname: string) {
+  if (td.classList.contains('cell-editing')) return;
+
+  const originalValue = td.textContent ?? '';
+  td.classList.add('cell-editing');
+  td.textContent = '';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = originalValue;
+  td.appendChild(input);
+  input.focus();
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveCellEdit(td, rowid, colname, input.value, originalValue);
+    } else if (e.key === 'Escape') {
+      td.classList.remove('cell-editing');
+      td.textContent = originalValue;
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    // Revert if still in editing state (user clicked away without Enter)
+    if (td.classList.contains('cell-editing')) {
+      td.classList.remove('cell-editing');
+      td.textContent = originalValue;
+    }
+  });
+}
+
+async function saveCellEdit(
+  td: HTMLTableCellElement,
+  rowid: number,
+  colname: string,
+  newValue: string,
+  originalValue: string
+) {
+  td.classList.remove('cell-editing');
+  td.textContent = newValue;
+
+  try {
+    const result = await api.updateTableRow(previewTableName, rowid, { [colname]: newValue });
+    if (!result.success) {
+      td.textContent = originalValue;
+      setPreviewStatus(result.error ?? 'Update failed');
+    }
+  } catch (err) {
+    td.textContent = originalValue;
+    setPreviewStatus(err instanceof Error ? err.message : 'Update failed');
+  }
+}
+
+async function addRow() {
+  try {
+    const result = await api.insertTableRow(previewTableName, {});
+    if (!result.success) {
+      setPreviewStatus(result.error ?? 'Insert failed');
+      return;
+    }
+    await loadPreviewPage(previewCurrentPage);
+    await loadDatabaseSchema();
+  } catch (err) {
+    setPreviewStatus(err instanceof Error ? err.message : 'Insert failed');
+  }
+}
+
+async function deleteRow(rowid: number) {
+  if (!window.confirm('Delete this row permanently?')) return;
+
+  try {
+    const result = await api.deleteTableRow(previewTableName, rowid);
+    if (!result.success) {
+      setPreviewStatus(result.error ?? 'Delete failed');
+      return;
+    }
+    // If current page is now beyond total, go back one
+    const newPage = previewCurrentPage > 1 && result.row_count !== undefined
+      ? Math.min(previewCurrentPage, Math.ceil(result.row_count / 50) || 1)
+      : previewCurrentPage;
+    await loadPreviewPage(newPage);
+    await loadDatabaseSchema();
+  } catch (err) {
+    setPreviewStatus(err instanceof Error ? err.message : 'Delete failed');
+  }
+}
+
+function setPreviewStatus(msg: string) {
+  const status = document.getElementById('preview-status') as HTMLElement;
+  status.textContent = msg;
+}
+
 // Display query results
 function displayResults(response: QueryResponse, query: string) {
   
@@ -317,9 +531,11 @@ function displayTables(tables: TableSchema[]) {
     tableLeft.style.alignItems = 'center';
     tableLeft.style.gap = '1rem';
     
-    const tableName = document.createElement('div');
-    tableName.className = 'table-name';
+    const tableName = document.createElement('button');
+    tableName.className = 'table-name-btn';
     tableName.textContent = table.name;
+    tableName.title = `Preview ${table.name}`;
+    tableName.addEventListener('click', () => openPreviewModal(table.name));
     
     const tableInfo = document.createElement('div');
     tableInfo.className = 'table-info';

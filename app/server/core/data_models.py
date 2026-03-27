@@ -86,6 +86,28 @@ class HealthCheckResponse(BaseModel):
     version: str = "1.0.0"
     uptime_seconds: float
 
+# Table Preview and Edit Models
+class TablePreviewResponse(BaseModel):
+    columns: List[str]
+    rows: List[List]
+    page: int
+    total_pages: int
+    total_rows: int
+    page_size: int
+    error: Optional[str] = None
+
+class RowUpdateRequest(BaseModel):
+    rowid: int
+    values: Dict[str, Any]
+
+class RowInsertRequest(BaseModel):
+    values: Dict[str, Any]
+
+class RowMutationResponse(BaseModel):
+    success: bool
+    row_count: Optional[int] = None
+    error: Optional[str] = None
+
 # Export Models
 class ExportRequest(BaseModel):
     table_name: str = Field(..., description="Name of the table to export")

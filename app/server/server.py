@@ -21,7 +21,11 @@ from core.data_models import (
     ColumnInfo,
     RandomQueryResponse,
     ExportRequest,
-    QueryExportRequest
+    QueryExportRequest,
+    TablePreviewResponse,
+    RowUpdateRequest,
+    RowInsertRequest,
+    RowMutationResponse,
 )
 from core.file_processor import convert_csv_to_sqlite, convert_json_to_sqlite, convert_jsonl_to_sqlite
 from core.llm_processor import generate_sql, generate_random_query
@@ -34,6 +38,7 @@ from core.sql_security import (
     SQLSecurityError
 )
 from core.export_utils import generate_csv_from_data, generate_csv_from_table
+from core import table_editor
 
 # Load .env file from server directory
 load_dotenv()
@@ -308,6 +313,38 @@ async def delete_table(table_name: str):
         logger.error(f"[ERROR] Table deletion failed: {str(e)}")
         logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(500, f"Error deleting table: {str(e)}")
+
+@app.get("/api/table/{name}/preview", response_model=TablePreviewResponse)
+async def preview_table(name: str, page: int = 1, limit: int = 50) -> TablePreviewResponse:
+    """Paginated preview of a table's data"""
+    result = table_editor.get_table_preview(name, page, limit)
+    if result.get("success") is False:
+        raise HTTPException(400, result.get("error", "Preview failed"))
+    return TablePreviewResponse(**result)
+
+
+@app.patch("/api/table/{name}/row", response_model=RowMutationResponse)
+async def update_row(name: str, request: RowUpdateRequest) -> RowMutationResponse:
+    """Update a single row by rowid"""
+    result = table_editor.update_table_row(name, request.rowid, request.values)
+    return RowMutationResponse(**result)
+
+
+@app.post("/api/table/{name}/row", response_model=RowMutationResponse)
+async def insert_row(name: str, request: RowInsertRequest) -> RowMutationResponse:
+    """Insert a new row into a table"""
+    result = table_editor.insert_table_row(name, request.values)
+    return RowMutationResponse(**result)
+
+
+@app.delete("/api/table/{name}/row/{rowid}", response_model=RowMutationResponse)
+async def delete_row(name: str, rowid: int) -> RowMutationResponse:
+    """Delete a row by rowid"""
+    if rowid < 1:
+        raise HTTPException(400, "rowid must be a positive integer")
+    result = table_editor.delete_table_row(name, rowid)
+    return RowMutationResponse(**result)
+
 
 @app.post("/api/export/table")
 async def export_table(request: ExportRequest) -> Response:

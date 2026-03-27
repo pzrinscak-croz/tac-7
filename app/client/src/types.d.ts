@@ -84,3 +84,20 @@ interface HealthCheckResponse {
   version: string;
   uptime_seconds: number;
 }
+
+// Table Preview and Edit Types
+interface TablePreviewResponse {
+  columns: string[];
+  rows: unknown[][];
+  page: number;
+  total_pages: number;
+  total_rows: number;
+  page_size: number;
+  error?: string;
+}
+
+interface RowMutationResponse {
+  success: boolean;
+  row_count?: number;
+  error?: string;
+}
