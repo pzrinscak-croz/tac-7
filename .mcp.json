@@ -8,7 +8,7 @@
         "--image-responses",
         "omit",
         "--config",
-        "./playwright-mcp-config.json"
+        "/Users/pzrinscak/dev/idd/tac-7/trees/fad0bb29/playwright-mcp-config.json"
       ]
     }
   }
