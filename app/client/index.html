@@ -95,6 +95,28 @@
           </div>
         </div>
       </div>
+
+        <!-- Preview Modal -->
+        <div id="preview-modal" class="modal" style="display: none;">
+          <div class="modal-content preview-modal-content">
+            <div class="modal-header">
+              <h2 id="preview-modal-title">Table Preview</h2>
+              <button class="close-modal" id="close-preview-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div id="preview-toolbar">
+                <button id="add-row-button" class="primary-button">Add Row</button>
+              </div>
+              <div id="preview-table-container"></div>
+              <div id="preview-pagination">
+                <button id="prev-page-button" class="secondary-button" disabled>Previous</button>
+                <span id="page-info">Page 1 of 1</span>
+                <button id="next-page-button" class="secondary-button" disabled>Next</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

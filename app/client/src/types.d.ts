@@ -84,3 +84,40 @@ interface HealthCheckResponse {
   version: string;
   uptime_seconds: number;
 }
+
+// Table Preview Types
+interface TablePreviewResponse {
+  columns: string[];
+  rows: Record<string, any>[];
+  total_rows: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  error?: string;
+}
+
+interface RowUpdateRequest {
+  column: string;
+  value: any;
+  rowid: number;
+}
+
+interface RowUpdateResponse {
+  success: boolean;
+  error?: string;
+}
+
+interface RowInsertRequest {
+  values: Record<string, any>;
+}
+
+interface RowInsertResponse {
+  success: boolean;
+  rowid: number;
+  error?: string;
+}
+
+interface RowDeleteResponse {
+  success: boolean;
+  error?: string;
+}

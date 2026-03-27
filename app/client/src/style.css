@@ -543,3 +543,139 @@ h2 {
 .divider::after {
   right: 0;
 }
+
+/* Preview Modal */
+.preview-modal-content {
+  max-width: 90vw;
+  width: 90%;
+  max-height: 85vh;
+  overflow: auto;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.preview-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.preview-table tr:hover {
+  background: #f8f9fa;
+}
+
+.preview-table td:hover {
+  background: rgba(102, 126, 234, 0.05);
+  cursor: pointer;
+}
+
+.preview-table td.editing {
+  padding: 0.25rem;
+  background: rgba(102, 126, 234, 0.1);
+  border: 2px solid var(--primary-color);
+}
+
+.cell-edit-input {
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  background: transparent;
+}
+
+#preview-toolbar {
+  display: flex;
+  margin-bottom: 1rem;
+}
+
+#preview-toolbar .primary-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+#preview-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+#preview-pagination .secondary-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+#page-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.delete-row-button {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.delete-row-button:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--error-color);
+}
+
+.table-name-clickable {
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.table-name-clickable:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.new-row {
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.new-row-input {
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.new-row-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.save-new-row-button {
+  padding: 0.25rem 0.75rem !important;
+  font-size: 0.75rem !important;
+}
