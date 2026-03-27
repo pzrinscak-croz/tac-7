@@ -8,6 +8,7 @@ import traceback
 from dotenv import load_dotenv
 import logging
 import sys
+import math
 
 from core.data_models import (
     FileUploadResponse,
@@ -368,8 +369,6 @@ async def export_query_results(request: QueryExportRequest) -> Response:
         logger.error(f"[ERROR] Query export failed: {str(e)}")
         logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(500, f"Error exporting query results: {str(e)}")
-
-import math
 
 @app.get("/api/table/{table_name}/preview", response_model=TablePreviewResponse)
 async def get_table_preview(table_name: str, page: int = 1, limit: int = 50) -> TablePreviewResponse:
