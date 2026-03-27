@@ -21,7 +21,20 @@ function getDownloadIcon(): string {
 function initializeQueryInput() {
   const queryInput = document.getElementById('query-input') as HTMLTextAreaElement;
   const queryButton = document.getElementById('query-button') as HTMLButtonElement;
-  
+  const providerSelect = document.getElementById('llm-provider-select') as HTMLSelectElement;
+
+  // Initialize provider dropdown from localStorage
+  const savedProvider = localStorage.getItem('llm_provider') || 'openai';
+  if (savedProvider === 'openai' || savedProvider === 'anthropic') {
+    providerSelect.value = savedProvider;
+  } else {
+    providerSelect.value = 'openai';
+  }
+
+  providerSelect.addEventListener('change', () => {
+    localStorage.setItem('llm_provider', providerSelect.value);
+  });
+
   // Debouncing state
   let isQueryInProgress = false;
   let debounceTimer: number | null = null;
@@ -46,7 +59,7 @@ function initializeQueryInput() {
     try {
       const response = await api.processQuery({
         query,
-        llm_provider: 'openai'  // Default to OpenAI
+        llm_provider: providerSelect.value as 'openai' | 'anthropic'
       });
       
       displayResults(response, query);
