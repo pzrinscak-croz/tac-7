@@ -14,6 +14,8 @@ interface QueryRequest {
   query: string;
   llm_provider: "openai" | "anthropic";
   table_name?: string;
+  previous_query?: string;
+  previous_sql?: string;
 }
 
 interface QueryResponse {

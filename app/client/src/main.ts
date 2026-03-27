@@ -2,6 +2,26 @@ import './style.css'
 import { api } from './api/client'
 
 // Global state
+let lastQuery: string | null = null;
+let lastSql: string | null = null;
+
+function updateContextIndicator() {
+  const indicator = document.getElementById('context-indicator') as HTMLElement;
+  const label = document.getElementById('context-label') as HTMLSpanElement;
+  if (lastQuery && lastSql) {
+    const truncated = lastQuery.length > 50 ? lastQuery.substring(0, 50) + '...' : lastQuery;
+    label.textContent = `Continuing from: '${truncated}'`;
+    indicator.style.display = 'flex';
+  } else {
+    indicator.style.display = 'none';
+  }
+}
+
+function clearContext() {
+  lastQuery = null;
+  lastSql = null;
+  updateContextIndicator();
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeFileUpload();
   initializeModal();
   initializeRandomQueryButton();
+  initializeClearContextButton();
   loadDatabaseSchema();
 });
 
@@ -44,13 +65,22 @@ function initializeQueryInput() {
     queryButton.innerHTML = '<span class="loading"></span>';
     
     try {
-      const response = await api.processQuery({
+      const request: QueryRequest = {
         query,
-        llm_provider: 'openai'  // Default to OpenAI
-      });
-      
+        llm_provider: 'openai',
+        ...(lastQuery && lastSql ? { previous_query: lastQuery, previous_sql: lastSql } : {})
+      };
+      const response = await api.processQuery(request);
+
       displayResults(response, query);
-      
+
+      // Update conversation context on success (no error)
+      if (!response.error) {
+        lastQuery = query;
+        lastSql = response.sql;
+        updateContextIndicator();
+      }
+
       // Clear the input field on success
       queryInput.value = '';
     } catch (error) {
@@ -119,6 +149,14 @@ function initializeRandomQueryButton() {
   });
 }
 
+// Clear Context Button
+function initializeClearContextButton() {
+  const clearButton = document.getElementById('clear-context-button') as HTMLButtonElement;
+  clearButton.addEventListener('click', () => {
+    clearContext();
+  });
+}
+
 // File Upload Functionality
 function initializeFileUpload() {
   const dropZone = document.getElementById('drop-zone') as HTMLDivElement;
@@ -165,6 +203,7 @@ async function handleFileUpload(file: File) {
     if (response.error) {
       displayError(response.error);
     } else {
+      clearContext();
       displayUploadSuccess(response);
       await loadDatabaseSchema();
     }

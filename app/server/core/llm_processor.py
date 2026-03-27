@@ -4,7 +4,24 @@ from openai import OpenAI
 from anthropic import Anthropic
 from core.data_models import QueryRequest
 
-def generate_sql_with_openai(query_text: str, schema_info: Dict[str, Any]) -> str:
+def build_conversation_context(previous_query: str | None, previous_sql: str | None) -> str:
+    """
+    Build conversation context string when both previous_query and previous_sql are provided.
+    Returns empty string if either is missing.
+    """
+    if previous_query and previous_sql:
+        return f"""
+Previous conversation context:
+User asked: "{previous_query}"
+Generated SQL: {previous_sql}
+
+Now the user is asking a follow-up question. Use the previous context to understand references like "that", "those results", "filter it", etc.
+
+"""
+    return ""
+
+
+def generate_sql_with_openai(query_text: str, schema_info: Dict[str, Any], previous_query: str | None = None, previous_sql: str | None = None) -> str:
     """
     Generate SQL query using OpenAI API
     """
@@ -19,12 +36,15 @@ def generate_sql_with_openai(query_text: str, schema_info: Dict[str, Any]) -> st
         # Format schema for prompt
         schema_description = format_schema_for_prompt(schema_info)
         
+        # Build conversation context
+        conversation_context = build_conversation_context(previous_query, previous_sql)
+
         # Create prompt
         prompt = f"""Given the following database schema:
 
 {schema_description}
 
-Convert this natural language query to SQL: "{query_text}"
+{conversation_context}Convert this natural language query to SQL: "{query_text}"
 
 Rules:
 - Return ONLY the SQL query, no explanations
@@ -38,7 +58,7 @@ Rules:
 - NEVER include SQL comments (-- or /* */) in the query
 
 SQL Query:"""
-        
+
         # Call OpenAI API
         response = client.chat.completions.create(
             model="gpt-4.1-2025-04-14",
@@ -65,7 +85,7 @@ SQL Query:"""
     except Exception as e:
         raise Exception(f"Error generating SQL with OpenAI: {str(e)}")
 
-def generate_sql_with_anthropic(query_text: str, schema_info: Dict[str, Any]) -> str:
+def generate_sql_with_anthropic(query_text: str, schema_info: Dict[str, Any], previous_query: str | None = None, previous_sql: str | None = None) -> str:
     """
     Generate SQL query using Anthropic API
     """
@@ -80,12 +100,15 @@ def generate_sql_with_anthropic(query_text: str, schema_info: Dict[str, Any]) ->
         # Format schema for prompt
         schema_description = format_schema_for_prompt(schema_info)
         
+        # Build conversation context
+        conversation_context = build_conversation_context(previous_query, previous_sql)
+
         # Create prompt
         prompt = f"""Given the following database schema:
 
 {schema_description}
 
-Convert this natural language query to SQL: "{query_text}"
+{conversation_context}Convert this natural language query to SQL: "{query_text}"
 
 Rules:
 - Return ONLY the SQL query, no explanations
@@ -99,7 +122,7 @@ Rules:
 - NEVER include SQL comments (-- or /* */) in the query
 
 SQL Query:"""
-        
+
         # Call Anthropic API
         response = client.messages.create(
             model="claude-sonnet-4-0",
@@ -274,12 +297,12 @@ def generate_sql(request: QueryRequest, schema_info: Dict[str, Any]) -> str:
     
     # Check API key availability first (OpenAI priority)
     if openai_key:
-        return generate_sql_with_openai(request.query, schema_info)
+        return generate_sql_with_openai(request.query, schema_info, request.previous_query, request.previous_sql)
     elif anthropic_key:
-        return generate_sql_with_anthropic(request.query, schema_info)
-    
+        return generate_sql_with_anthropic(request.query, schema_info, request.previous_query, request.previous_sql)
+
     # Fall back to request preference if both keys available or neither available
     if request.llm_provider == "openai":
-        return generate_sql_with_openai(request.query, schema_info)
+        return generate_sql_with_openai(request.query, schema_info, request.previous_query, request.previous_sql)
     else:
-        return generate_sql_with_anthropic(request.query, schema_info)
+        return generate_sql_with_anthropic(request.query, schema_info, request.previous_query, request.previous_sql)
