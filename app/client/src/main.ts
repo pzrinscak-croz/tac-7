@@ -5,6 +5,7 @@ import { api } from './api/client'
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+  initializeProviderSelect();
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
@@ -15,6 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
 // Helper function to get download icon
 function getDownloadIcon(): string {
   return '📊 CSV';
+}
+
+// Provider Select Functionality
+function initializeProviderSelect() {
+  const selectEl = document.getElementById('provider-select') as HTMLSelectElement;
+  const saved = localStorage.getItem('llm_provider') ?? 'openai';
+  selectEl.value = saved;
+  selectEl.addEventListener('change', () => {
+    localStorage.setItem('llm_provider', selectEl.value);
+  });
 }
 
 // Query Input Functionality
@@ -46,7 +57,7 @@ function initializeQueryInput() {
     try {
       const response = await api.processQuery({
         query,
-        llm_provider: 'openai'  // Default to OpenAI
+        llm_provider: (document.getElementById('provider-select') as HTMLSelectElement).value as 'openai' | 'anthropic'
       });
       
       displayResults(response, query);
