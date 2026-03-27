@@ -234,16 +234,15 @@ function displayResults(response: QueryResponse, query: string) {
     toggleButton.textContent = resultsContainer.style.display === 'none' ? 'Show' : 'Hide';
   });
 
+  // Remove existing button container unconditionally
+  const resultsHeader = document.querySelector('.results-header') as HTMLElement;
+  const existingButtonContainer = resultsHeader?.querySelector('.results-header-buttons');
+  if (existingButtonContainer) {
+    existingButtonContainer.remove();
+  }
+
   // Add export button if results exist
   if (!response.error && response.results.length > 0) {
-    const resultsHeader = document.querySelector('.results-header') as HTMLElement;
-    
-    // Remove existing button container if any
-    const existingButtonContainer = resultsHeader.querySelector('.results-header-buttons');
-    if (existingButtonContainer) {
-      existingButtonContainer.remove();
-    }
-    
     // Create button container
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'results-header-buttons';
@@ -694,9 +693,9 @@ function initializeChartPanel(response: QueryResponse) {
 
   const { xColumn, yColumn } = getDefaultAxes(numericColumns, categoricalColumns);
 
-  // Populate X-axis dropdown with all columns (categorical first, then numeric)
+  // Populate X-axis dropdown with categorical columns only
   xSelect.innerHTML = '';
-  const allXOptions = [...categoricalColumns, ...numericColumns];
+  const allXOptions = [...categoricalColumns];
   for (const col of allXOptions) {
     const opt = document.createElement('option');
     opt.value = col;
