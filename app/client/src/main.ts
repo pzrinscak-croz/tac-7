@@ -1,7 +1,9 @@
 import './style.css'
 import { api } from './api/client'
+import { getHistory, saveToHistory, removeFromHistory, clearHistory } from './queryHistory'
 
 // Global state
+let renderHistoryDropdown: () => void = () => {};
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeFileUpload();
   initializeModal();
   initializeRandomQueryButton();
+  initializeQueryHistory();
   loadDatabaseSchema();
 });
 
@@ -18,39 +21,46 @@ function getDownloadIcon(): string {
 }
 
 // Query Input Functionality
+// Module-level query state so history clicks can trigger execution
+let isQueryInProgress = false;
+let triggerQuery: () => void = () => {};
+
 function initializeQueryInput() {
   const queryInput = document.getElementById('query-input') as HTMLTextAreaElement;
   const queryButton = document.getElementById('query-button') as HTMLButtonElement;
-  
+
   // Debouncing state
-  let isQueryInProgress = false;
   let debounceTimer: number | null = null;
   const DEBOUNCE_DELAY = 400; // 400ms debounce delay
-  
+
   const executeQuery = async () => {
     const query = queryInput.value.trim();
     if (!query || isQueryInProgress) return;
-    
+
     // Clear any pending debounce timer
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
-    
+
     isQueryInProgress = true;
     // Ensure UI is disabled (might already be disabled from click handler)
     queryButton.disabled = true;
     queryInput.disabled = true;
     queryButton.innerHTML = '<span class="loading"></span>';
-    
+
     try {
       const response = await api.processQuery({
         query,
         llm_provider: 'openai'  // Default to OpenAI
       });
-      
+
       displayResults(response, query);
-      
+
+      // Save successful query to history
+      saveToHistory({ query, sql: response.sql, timestamp: Date.now() });
+      renderHistoryDropdown();
+
       // Clear the input field on success
       queryInput.value = '';
     } catch (error) {
@@ -62,30 +72,110 @@ function initializeQueryInput() {
       queryButton.textContent = 'Query';
     }
   };
-  
+
+  // Expose trigger for history clicks
+  triggerQuery = () => {
+    const query = queryInput.value.trim();
+    if (!query || isQueryInProgress) return;
+    executeQuery();
+  };
+
   queryButton.addEventListener('click', () => {
     const query = queryInput.value.trim();
     if (!query || isQueryInProgress) return;
-    
+
     // Debounce rapid clicks
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
-    
+
     // Immediately disable UI
     queryButton.disabled = true;
     queryInput.disabled = true;
     queryButton.innerHTML = '<span class="loading"></span>';
-    
+
     debounceTimer = setTimeout(() => {
       executeQuery();
     }, DEBOUNCE_DELAY) as unknown as number;
   });
-  
+
   // Allow Cmd+Enter (Mac) or Ctrl+Enter (Windows/Linux) to submit
   queryInput.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       queryButton.click();
+    }
+  });
+}
+
+// Query History Dropdown
+function initializeQueryHistory() {
+  const dropdown = document.getElementById('query-history-dropdown') as HTMLDivElement;
+  const historyList = document.getElementById('query-history-list') as HTMLDivElement;
+  const clearButton = document.getElementById('clear-history-button') as HTMLButtonElement;
+  const queryInput = document.getElementById('query-input') as HTMLTextAreaElement;
+
+  renderHistoryDropdown = () => {
+    const history = getHistory();
+    historyList.innerHTML = '';
+
+    if (history.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'query-history-empty';
+      empty.textContent = 'No recent queries';
+      historyList.appendChild(empty);
+      clearButton.style.display = 'none';
+    } else {
+      clearButton.style.display = '';
+      history.forEach(entry => {
+        const item = document.createElement('div');
+        item.className = 'query-history-item';
+
+        const queryText = document.createElement('span');
+        queryText.className = 'query-history-query';
+        queryText.textContent = entry.query;
+        queryText.title = entry.query;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'query-history-remove';
+        removeBtn.innerHTML = '&times;';
+        removeBtn.title = 'Remove';
+        removeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeFromHistory(entry.query);
+          renderHistoryDropdown();
+        });
+
+        item.appendChild(queryText);
+        item.appendChild(removeBtn);
+
+        item.addEventListener('click', () => {
+          if (isQueryInProgress) return;
+          queryInput.value = entry.query;
+          dropdown.style.display = 'none';
+          triggerQuery();
+        });
+
+        historyList.appendChild(item);
+      });
+    }
+  };
+
+  clearButton.addEventListener('click', () => {
+    clearHistory();
+    renderHistoryDropdown();
+  });
+
+  // Show dropdown on input focus
+  queryInput.addEventListener('focus', () => {
+    renderHistoryDropdown();
+    dropdown.style.display = 'block';
+  });
+
+  // Hide dropdown on outside click
+  document.addEventListener('click', (e) => {
+    const target = e.target as Node;
+    if (!dropdown.contains(target) && target !== queryInput) {
+      dropdown.style.display = 'none';
     }
   });
 }

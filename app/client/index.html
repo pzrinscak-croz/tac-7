@@ -19,6 +19,13 @@
             rows="4"
             autofocus
           ></textarea>
+          <div id="query-history-dropdown" class="query-history-dropdown" style="display: none;">
+            <div class="query-history-header">
+              <span class="query-history-title">Recent Queries</span>
+              <button id="clear-history-button" class="query-history-clear">Clear all</button>
+            </div>
+            <div id="query-history-list" class="query-history-list"></div>
+          </div>
           <div class="query-controls">
             <div class="query-controls-left">
               <button id="query-button" class="primary-button">Query</button>

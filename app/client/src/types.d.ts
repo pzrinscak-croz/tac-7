@@ -76,6 +76,13 @@ interface RandomQueryResponse {
   error?: string;
 }
 
+// Query History Types
+interface QueryHistoryEntry {
+  query: string;
+  sql: string;
+  timestamp: number;
+}
+
 // Health Check Types
 interface HealthCheckResponse {
   status: "ok" | "error";
