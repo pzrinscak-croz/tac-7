@@ -315,7 +315,7 @@ class TestConversationContext:
         mock_client.chat.completions.create.return_value = mock_response
 
         with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
-            result = generate_sql_with_openai(
+            generate_sql_with_openai(
                 "filter that by city = 'New York'",
                 {'tables': {'users': {'columns': {'id': 'INTEGER', 'city': 'TEXT'}, 'row_count': 10}}},
                 previous_query="show all users",
@@ -337,7 +337,7 @@ class TestConversationContext:
         mock_client.messages.create.return_value = mock_response
 
         with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test-key'}):
-            result = generate_sql_with_anthropic(
+            generate_sql_with_anthropic(
                 "filter that by city = 'New York'",
                 {'tables': {'users': {'columns': {'id': 'INTEGER', 'city': 'TEXT'}, 'row_count': 10}}},
                 previous_query="show all users",
@@ -359,7 +359,7 @@ class TestConversationContext:
         mock_client.chat.completions.create.return_value = mock_response
 
         with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
-            result = generate_sql_with_openai("show all users", {'tables': {}})
+            generate_sql_with_openai("show all users", {'tables': {}})
 
             call_args = mock_client.chat.completions.create.call_args
             prompt = call_args[1]['messages'][1]['content']
@@ -376,7 +376,7 @@ class TestConversationContext:
                 previous_query="show all users",
                 previous_sql="SELECT * FROM users"
             )
-            result = generate_sql(request, {'tables': {}})
+            generate_sql(request, {'tables': {}})
 
             mock_openai_func.assert_called_once_with(
                 "filter that by city", {'tables': {}}, "show all users", "SELECT * FROM users"
