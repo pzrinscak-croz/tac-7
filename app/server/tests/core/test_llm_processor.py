@@ -2,10 +2,11 @@ import pytest
 import os
 from unittest.mock import patch, MagicMock
 from core.llm_processor import (
-    generate_sql_with_openai, 
-    generate_sql_with_anthropic, 
+    generate_sql_with_openai,
+    generate_sql_with_anthropic,
     format_schema_for_prompt,
-    generate_sql
+    generate_sql,
+    build_conversation_context
 )
 from core.data_models import QueryRequest
 
@@ -214,7 +215,7 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM users"
-            mock_openai_func.assert_called_once_with("Show all users", schema_info)
+            mock_openai_func.assert_called_once_with("Show all users", schema_info, None, None)
     
     @patch('core.llm_processor.generate_sql_with_anthropic')
     def test_generate_sql_anthropic_fallback(self, mock_anthropic_func):
@@ -228,7 +229,7 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM products"
-            mock_anthropic_func.assert_called_once_with("Show all products", schema_info)
+            mock_anthropic_func.assert_called_once_with("Show all products", schema_info, None, None)
     
     @patch('core.llm_processor.generate_sql_with_openai')
     def test_generate_sql_request_preference_openai(self, mock_openai_func):
@@ -242,7 +243,7 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM orders"
-            mock_openai_func.assert_called_once_with("Show all orders", schema_info)
+            mock_openai_func.assert_called_once_with("Show all orders", schema_info, None, None)
     
     @patch('core.llm_processor.generate_sql_with_anthropic')
     def test_generate_sql_request_preference_anthropic(self, mock_anthropic_func):
@@ -256,7 +257,7 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM customers"
-            mock_anthropic_func.assert_called_once_with("Show all customers", schema_info)
+            mock_anthropic_func.assert_called_once_with("Show all customers", schema_info, None, None)
     
     @patch('core.llm_processor.generate_sql_with_openai')
     def test_generate_sql_both_keys_openai_priority(self, mock_openai_func):
@@ -270,7 +271,7 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM inventory"
-            mock_openai_func.assert_called_once_with("Show inventory", schema_info)
+            mock_openai_func.assert_called_once_with("Show inventory", schema_info, None, None)
     
     @patch('core.llm_processor.generate_sql_with_openai')
     def test_generate_sql_only_openai_key(self, mock_openai_func):
@@ -284,4 +285,101 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM sales"
-            mock_openai_func.assert_called_once_with("Show sales data", schema_info)
+            mock_openai_func.assert_called_once_with("Show sales data", schema_info, None, None)
+
+
+class TestConversationContext:
+
+    def test_build_conversation_context_with_both(self):
+        result = build_conversation_context("Show all users", "SELECT * FROM users")
+        assert 'Previous conversation context:' in result
+        assert 'User asked: "Show all users"' in result
+        assert 'Generated SQL: SELECT * FROM users' in result
+        assert 'follow-up question' in result
+
+    def test_build_conversation_context_without_context(self):
+        assert build_conversation_context(None, None) == ""
+        assert build_conversation_context("query", None) == ""
+        assert build_conversation_context(None, "SELECT 1") == ""
+
+    @patch('core.llm_processor.OpenAI')
+    def test_generate_sql_with_openai_with_context(self, mock_openai_class):
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "SELECT * FROM users WHERE city = 'New York'"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
+            result = generate_sql_with_openai(
+                "filter that by city = 'New York'",
+                {'tables': {'users': {'columns': {'id': 'INTEGER', 'city': 'TEXT'}, 'row_count': 10}}},
+                previous_query="Show all users",
+                previous_sql="SELECT * FROM users"
+            )
+
+            assert result == "SELECT * FROM users WHERE city = 'New York'"
+            call_args = mock_client.chat.completions.create.call_args
+            prompt = call_args[1]['messages'][1]['content']
+            assert 'Previous conversation context:' in prompt
+            assert 'Show all users' in prompt
+
+    @patch('core.llm_processor.Anthropic')
+    def test_generate_sql_with_anthropic_with_context(self, mock_anthropic_class):
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.content[0].text = "SELECT * FROM users WHERE city = 'New York'"
+        mock_client.messages.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test-key'}):
+            result = generate_sql_with_anthropic(
+                "filter that by city = 'New York'",
+                {'tables': {'users': {'columns': {'id': 'INTEGER', 'city': 'TEXT'}, 'row_count': 10}}},
+                previous_query="Show all users",
+                previous_sql="SELECT * FROM users"
+            )
+
+            assert result == "SELECT * FROM users WHERE city = 'New York'"
+            call_args = mock_client.messages.create.call_args
+            prompt = call_args[1]['messages'][0]['content']
+            assert 'Previous conversation context:' in prompt
+            assert 'Show all users' in prompt
+
+    @patch('core.llm_processor.OpenAI')
+    def test_generate_sql_without_context_prompt_unchanged(self, mock_openai_class):
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "SELECT * FROM users"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
+            generate_sql_with_openai("Show all users", {'tables': {}})
+
+            call_args = mock_client.chat.completions.create.call_args
+            prompt = call_args[1]['messages'][1]['content']
+            assert 'Previous conversation context:' not in prompt
+
+    @patch('core.llm_processor.generate_sql_with_openai')
+    def test_generate_sql_routes_context(self, mock_openai_func):
+        mock_openai_func.return_value = "SELECT * FROM users WHERE city = 'NYC'"
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'openai-key'}):
+            request = QueryRequest(
+                query="filter by city",
+                llm_provider="openai",
+                previous_query="Show all users",
+                previous_sql="SELECT * FROM users"
+            )
+            schema_info = {'tables': {}}
+
+            result = generate_sql(request, schema_info)
+
+            assert result == "SELECT * FROM users WHERE city = 'NYC'"
+            mock_openai_func.assert_called_once_with(
+                "filter by city", schema_info, "Show all users", "SELECT * FROM users"
+            )

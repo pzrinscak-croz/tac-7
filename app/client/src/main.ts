@@ -2,6 +2,28 @@ import './style.css'
 import { api } from './api/client'
 
 // Global state
+let previousQuery: string | null = null;
+let previousSql: string | null = null;
+
+function clearConversationContext() {
+  previousQuery = null;
+  previousSql = null;
+  updateContextIndicator();
+}
+
+function updateContextIndicator() {
+  const indicator = document.getElementById('context-indicator');
+  const label = document.getElementById('context-label');
+  if (!indicator || !label) return;
+
+  if (previousQuery) {
+    const truncated = previousQuery.length > 50 ? previousQuery.substring(0, 50) + '...' : previousQuery;
+    label.textContent = `Continuing from: '${truncated}'`;
+    indicator.style.display = 'flex';
+  } else {
+    indicator.style.display = 'none';
+  }
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,11 +68,19 @@ function initializeQueryInput() {
     try {
       const response = await api.processQuery({
         query,
-        llm_provider: 'openai'  // Default to OpenAI
+        llm_provider: 'openai',
+        previous_query: previousQuery ?? undefined,
+        previous_sql: previousSql ?? undefined
       });
-      
+
       displayResults(response, query);
-      
+
+      if (!response.error) {
+        previousQuery = query;
+        previousSql = response.sql;
+        updateContextIndicator();
+      }
+
       // Clear the input field on success
       queryInput.value = '';
     } catch (error) {
@@ -82,6 +112,11 @@ function initializeQueryInput() {
     }, DEBOUNCE_DELAY) as unknown as number;
   });
   
+  const clearContextButton = document.getElementById('clear-context-button');
+  if (clearContextButton) {
+    clearContextButton.addEventListener('click', () => clearConversationContext());
+  }
+
   // Allow Cmd+Enter (Mac) or Ctrl+Enter (Windows/Linux) to submit
   queryInput.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -165,6 +200,7 @@ async function handleFileUpload(file: File) {
     if (response.error) {
       displayError(response.error);
     } else {
+      clearConversationContext();
       displayUploadSuccess(response);
       await loadDatabaseSchema();
     }
@@ -477,9 +513,11 @@ async function removeTable(tableName: string) {
       throw new Error('Failed to remove table');
     }
     
+    clearConversationContext();
+
     // Reload schema
     await loadDatabaseSchema();
-    
+
     // Show success message
     const successDiv = document.createElement('div');
     successDiv.className = 'success-message';
