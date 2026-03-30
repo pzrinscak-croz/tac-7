@@ -264,6 +264,10 @@ def generate_branch_name(
         return None, response.output
 
     branch_name = response.output.strip()
+    # Strip markdown code fences that LLM may wrap around the branch name
+    branch_name = re.sub(r"^```\w*\n?", "", branch_name)
+    branch_name = re.sub(r"\n?```$", "", branch_name)
+    branch_name = branch_name.strip()
     logger.info(f"Generated branch name: {branch_name}")
     return branch_name, None
 

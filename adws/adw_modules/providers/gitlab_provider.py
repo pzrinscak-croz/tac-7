@@ -21,8 +21,8 @@ from .base import (
 class GitLabProvider(IssueProvider):
     """GitLab implementation of the issue provider interface."""
 
-    def __init__(self, remote_name: str = "gitlab"):
-        self._remote_name = remote_name
+    def __init__(self, remote_name: str = "origin"):
+        super().__init__(remote_name=remote_name)
 
     def get_provider_name(self) -> str:
         return "gitlab"
@@ -32,20 +32,6 @@ class GitLabProvider(IssueProvider):
 
     def get_mr_term(self) -> str:
         return "MR"
-
-    def get_repo_url(self) -> str:
-        """Get repository URL from the gitlab remote."""
-        try:
-            result = subprocess.run(
-                ["git", "remote", "get-url", self._remote_name],
-                capture_output=True, text=True, check=True,
-            )
-            return result.stdout.strip()
-        except subprocess.CalledProcessError:
-            raise ValueError(
-                f"No git remote '{self._remote_name}' found. "
-                f"Add one with: git remote add {self._remote_name} <gitlab-url>"
-            )
 
     def get_repo_path(self) -> str:
         """Extract group/project from GitLab URL.

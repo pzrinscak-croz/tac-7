@@ -93,10 +93,17 @@ class IssueProvider(ABC):
 
     Implementations handle the CLI and API differences between
     GitHub (gh), GitLab (glab), etc.
+
+    Args:
+        remote_name: The git remote to push/pull/fetch from (default: "origin").
+                     Controlled by the ADW_GIT_REMOTE_NAME env var at the factory level.
     """
 
     # Bot identifier to prevent webhook loops
     BOT_IDENTIFIER = "[ADW-AGENTS]"
+
+    def __init__(self, remote_name: str = "origin"):
+        self._remote_name = remote_name
 
     @abstractmethod
     def get_repo_path(self) -> str:
@@ -163,18 +170,23 @@ class IssueProvider(ABC):
         """Return the term for merge requests (e.g., 'PR', 'MR')."""
         ...
 
+    def get_remote_name(self) -> str:
+        """Return the git remote name this provider pushes/pulls from."""
+        return self._remote_name
+
     def get_repo_url(self) -> str:
         """Get repository URL from git remote. Shared across providers."""
         import subprocess
+        remote = self.get_remote_name()
         try:
             result = subprocess.run(
-                ["git", "remote", "get-url", "origin"],
+                ["git", "remote", "get-url", remote],
                 capture_output=True, text=True, check=True,
             )
             return result.stdout.strip()
         except subprocess.CalledProcessError:
             raise ValueError(
-                "No git remote 'origin' found. Please ensure you're in a git repository with a remote."
+                f"No git remote '{remote}' found. Please ensure you're in a git repository with a remote."
             )
 
     def upload_file(self, file_path: str, remote_name: Optional[str] = None) -> Optional[str]:

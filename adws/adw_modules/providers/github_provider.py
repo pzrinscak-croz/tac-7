@@ -21,6 +21,9 @@ from .base import (
 class GitHubProvider(IssueProvider):
     """GitHub implementation of the issue provider interface."""
 
+    def __init__(self, remote_name: str = "origin"):
+        super().__init__(remote_name=remote_name)
+
     def get_provider_name(self) -> str:
         return "github"
 

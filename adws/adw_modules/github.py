@@ -12,8 +12,7 @@ All existing imports continue to work unchanged:
     from adw_modules.github import fetch_issue, make_issue_comment, ...
 
 Provider is selected via:
-    - ADW_PROVIDER env var ("github" or "gitlab")
-    - Auto-detection from git remotes
+    - ADW_GIT_REMOTE_NAME env var (default: "origin") — provider auto-detected from URL
 """
 
 from typing import Dict, List, Optional

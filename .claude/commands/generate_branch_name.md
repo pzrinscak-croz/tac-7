@@ -31,4 +31,4 @@ Do NOT create or checkout any branches - just generate the name.
 
 ## Report
 
-Return ONLY the generated branch name (no other text)
+Return ONLY the generated branch name as plain text. Do NOT wrap in backticks, code fences, or any markdown formatting.

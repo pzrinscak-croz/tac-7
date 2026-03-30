@@ -199,23 +199,37 @@ def get_safe_subprocess_env() -> Dict[str, str]:
     safe_env_vars = {
         # Anthropic Configuration (required)
         "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY"),
-        
+
+        # Provider Selection (provider type auto-detected from remote URL)
+        "ADW_GIT_REMOTE_NAME": os.getenv("ADW_GIT_REMOTE_NAME"),
+
         # GitHub Configuration (optional)
         # GITHUB_PAT is optional - if not set, will use default gh auth
         "GITHUB_PAT": os.getenv("GITHUB_PAT"),
-        
+
+        # GitLab Configuration (optional)
+        "GITLAB_TOKEN": os.getenv("GITLAB_TOKEN"),
+        "GITLAB_ACCESS_TOKEN": os.getenv("GITLAB_ACCESS_TOKEN"),
+
         # Claude Code Configuration
         "CLAUDE_CODE_PATH": os.getenv("CLAUDE_CODE_PATH", "claude"),
         "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": os.getenv(
             "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR", "true"
         ),
-        
+
         # Agent Cloud Sandbox Environment (optional)
         "E2B_API_KEY": os.getenv("E2B_API_KEY"),
-        
+
         # Cloudflare tunnel token (optional)
         "CLOUDFLARED_TUNNEL_TOKEN": os.getenv("CLOUDFLARED_TUNNEL_TOKEN"),
-        
+
+        # Cloudflare R2 Configuration (optional, for review screenshot uploads)
+        "CLOUDFLARE_ACCOUNT_ID": os.getenv("CLOUDFLARE_ACCOUNT_ID"),
+        "CLOUDFLARE_R2_ACCESS_KEY_ID": os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+        "CLOUDFLARE_R2_SECRET_ACCESS_KEY": os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
+        "CLOUDFLARE_R2_BUCKET_NAME": os.getenv("CLOUDFLARE_R2_BUCKET_NAME"),
+        "CLOUDFLARE_R2_PUBLIC_DOMAIN": os.getenv("CLOUDFLARE_R2_PUBLIC_DOMAIN"),
+
         # Essential system environment variables
         "HOME": os.getenv("HOME"),
         "USER": os.getenv("USER"),
@@ -224,19 +238,19 @@ def get_safe_subprocess_env() -> Dict[str, str]:
         "TERM": os.getenv("TERM"),
         "LANG": os.getenv("LANG"),
         "LC_ALL": os.getenv("LC_ALL"),
-        
+
         # Python-specific variables that subprocesses might need
         "PYTHONPATH": os.getenv("PYTHONPATH"),
         "PYTHONUNBUFFERED": "1",  # Useful for subprocess output
-        
+
         # Working directory tracking
         "PWD": os.getcwd(),
     }
-    
+
     # Add GH_TOKEN as alias for GITHUB_PAT if it exists
     github_pat = os.getenv("GITHUB_PAT")
     if github_pat:
         safe_env_vars["GH_TOKEN"] = github_pat
-    
+
     # Filter out None values
     return {k: v for k, v in safe_env_vars.items() if v is not None}

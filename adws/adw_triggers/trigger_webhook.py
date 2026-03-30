@@ -18,7 +18,7 @@ Usage: uv run trigger_webhook.py
 
 Environment Requirements:
 - PORT: Server port (default: 8001)
-- ADW_PROVIDER: "github" or "gitlab" (auto-detected if not set)
+- ADW_GIT_REMOTE_NAME: git remote name (default: "origin"); provider auto-detected from URL
 - All workflow requirements (GITHUB_PAT or GITLAB_TOKEN, ANTHROPIC_API_KEY, etc.)
 """
 
@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from adw_modules.utils import make_adw_id, setup_logger, get_safe_subprocess_env
 from adw_modules.github import make_issue_comment, ADW_BOT_IDENTIFIER
-from adw_modules.workflow_ops import extract_adw_info, AVAILABLE_ADW_WORKFLOWS
+from adw_modules.workflow_ops import extract_adw_info
 from adw_modules.state import ADWState
 
 # Load environment variables

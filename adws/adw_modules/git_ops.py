@@ -27,9 +27,10 @@ def get_current_branch(cwd: Optional[str] = None) -> str:
 def push_branch(
     branch_name: str, cwd: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
-    """Push current branch to remote. Returns (success, error_message)."""
+    """Push current branch to the active provider's remote. Returns (success, error_message)."""
+    remote = get_provider().get_remote_name()
     result = subprocess.run(
-        ["git", "push", "-u", "origin", branch_name],
+        ["git", "push", "-u", remote, branch_name],
         capture_output=True,
         text=True,
         cwd=cwd,

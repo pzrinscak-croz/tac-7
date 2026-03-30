@@ -5,9 +5,9 @@ Usage:
     provider = get_provider()
     issue = provider.fetch_issue("123", provider.get_repo_path())
 
-Provider selection (in priority order):
-    1. ADW_PROVIDER env var: "github" or "gitlab"
-    2. Auto-detect from git remote URL
+Environment variables:
+    ADW_GIT_REMOTE_NAME: Git remote name to push/pull from (default: "origin").
+                         Provider type (GitHub vs GitLab) is auto-detected from the remote URL.
 """
 
 import os
@@ -29,68 +29,45 @@ from .base import (
 _provider: Optional[IssueProvider] = None
 
 
-def _detect_provider_from_remote() -> str:
-    """Auto-detect provider by examining git remotes.
+def _get_remote_name() -> str:
+    """Return the configured git remote name (default: "origin")."""
+    return os.getenv("ADW_GIT_REMOTE_NAME", "origin")
 
-    Priority:
-    1. If ADW_GIT_REMOTE is set, use that remote name
-    2. If 'gitlab' remote exists, use gitlab
-    3. If 'origin' contains 'gitlab', use gitlab
-    4. Default to github
+
+def _detect_provider_from_remote(remote_name: str) -> str:
+    """Auto-detect provider type by examining the git remote URL.
+
+    Returns "gitlab" if the URL contains "gitlab", otherwise "github".
     """
-    remote_name = os.getenv("ADW_GIT_REMOTE")
-
-    if remote_name:
-        try:
-            result = subprocess.run(
-                ["git", "remote", "get-url", remote_name],
-                capture_output=True, text=True, check=True,
-            )
-            url = result.stdout.strip().lower()
-            if "gitlab" in url:
-                return "gitlab"
-            return "github"
-        except subprocess.CalledProcessError:
-            pass
-
-    # Check if 'gitlab' remote exists
     try:
         result = subprocess.run(
-            ["git", "remote", "get-url", "gitlab"],
-            capture_output=True, text=True,
+            ["git", "remote", "get-url", remote_name],
+            capture_output=True, text=True, check=True,
         )
-        if result.returncode == 0:
+        url = result.stdout.strip().lower()
+        if "gitlab" in url:
             return "gitlab"
-    except Exception:
-        pass
-
-    # Check origin URL
-    try:
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            capture_output=True, text=True,
-        )
-        if result.returncode == 0 and "gitlab" in result.stdout.lower():
-            return "gitlab"
-    except Exception:
-        pass
-
-    return "github"
+        return "github"
+    except subprocess.CalledProcessError:
+        return "github"
 
 
 def get_provider(force: Optional[str] = None) -> IssueProvider:
     """Get the active issue provider (singleton).
 
+    Provider type is auto-detected from the ADW_GIT_REMOTE_NAME remote URL.
+    Use the ``force`` parameter only in tests or internal overrides.
+
     Args:
         force: Override provider selection ("github" or "gitlab").
-               If None, uses ADW_PROVIDER env var or auto-detection.
 
     Returns:
         The active IssueProvider instance.
     """
     global _provider
 
-    provider_name = force or os.getenv("ADW_PROVIDER") or _detect_provider_from_remote()
+    remote_name = _get_remote_name()
+    provider_name = force or _detect_provider_from_remote(remote_name)
 
     # Return cached if same provider
     if _provider is not None and _provider.get_provider_name() == provider_name:
@@ -98,11 +75,10 @@ def get_provider(force: Optional[str] = None) -> IssueProvider:
 
     if provider_name == "gitlab":
         from .gitlab_provider import GitLabProvider
-        remote_name = os.getenv("ADW_GIT_REMOTE", "gitlab")
         _provider = GitLabProvider(remote_name=remote_name)
     elif provider_name == "github":
         from .github_provider import GitHubProvider
-        _provider = GitHubProvider()
+        _provider = GitHubProvider(remote_name=remote_name)
     else:
         raise ValueError(f"Unknown provider: {provider_name}. Use 'github' or 'gitlab'.")
 

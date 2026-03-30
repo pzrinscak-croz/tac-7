@@ -40,6 +40,7 @@ from adw_modules.github import (
     get_repo_url,
     extract_repo_path,
 )
+from adw_modules.providers import get_provider
 from adw_modules.workflow_ops import format_issue_message
 from adw_modules.utils import setup_logger, check_env_vars
 from adw_modules.worktree_ops import validate_worktree
@@ -79,15 +80,17 @@ def manual_merge_to_main(branch_name: str, logger: logging.Logger) -> Tuple[bool
         original_branch = result.stdout.strip()
         logger.debug(f"Original branch: {original_branch}")
         
-        # Step 1: Fetch latest from origin
-        logger.info("Fetching latest from origin...")
+        remote = get_provider().get_remote_name()
+
+        # Step 1: Fetch latest from remote
+        logger.info(f"Fetching latest from {remote}...")
         result = subprocess.run(
-            ["git", "fetch", "origin"],
+            ["git", "fetch", remote],
             capture_output=True, text=True, cwd=repo_root
         )
         if result.returncode != 0:
-            return False, f"Failed to fetch from origin: {result.stderr}"
-        
+            return False, f"Failed to fetch from {remote}: {result.stderr}"
+
         # Step 2: Checkout main
         logger.info("Checking out main branch...")
         result = subprocess.run(
@@ -96,18 +99,18 @@ def manual_merge_to_main(branch_name: str, logger: logging.Logger) -> Tuple[bool
         )
         if result.returncode != 0:
             return False, f"Failed to checkout main: {result.stderr}"
-        
+
         # Step 3: Pull latest main
-        logger.info("Pulling latest main...")
+        logger.info(f"Pulling latest main from {remote}...")
         result = subprocess.run(
-            ["git", "pull", "origin", "main"],
+            ["git", "pull", remote, "main"],
             capture_output=True, text=True, cwd=repo_root
         )
         if result.returncode != 0:
             # Try to restore original branch
             subprocess.run(["git", "checkout", original_branch], cwd=repo_root)
             return False, f"Failed to pull latest main: {result.stderr}"
-        
+
         # Step 4: Merge the feature branch (no-ff to preserve all commits)
         logger.info(f"Merging branch {branch_name} (no-ff to preserve all commits)...")
         result = subprocess.run(
@@ -118,17 +121,17 @@ def manual_merge_to_main(branch_name: str, logger: logging.Logger) -> Tuple[bool
             # Try to restore original branch
             subprocess.run(["git", "checkout", original_branch], cwd=repo_root)
             return False, f"Failed to merge {branch_name}: {result.stderr}"
-        
-        # Step 5: Push to origin/main
-        logger.info("Pushing to origin/main...")
+
+        # Step 5: Push to remote/main
+        logger.info(f"Pushing to {remote}/main...")
         result = subprocess.run(
-            ["git", "push", "origin", "main"],
+            ["git", "push", remote, "main"],
             capture_output=True, text=True, cwd=repo_root
         )
         if result.returncode != 0:
             # Try to restore original branch
             subprocess.run(["git", "checkout", original_branch], cwd=repo_root)
-            return False, f"Failed to push to origin/main: {result.stderr}"
+            return False, f"Failed to push to {remote}/main: {result.stderr}"
         
         # Step 6: Restore original branch
         logger.info(f"Restoring original branch: {original_branch}")
