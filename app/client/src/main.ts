@@ -1,5 +1,6 @@
 import './style.css'
 import { api } from './api/client'
+import { classifyColumns, createChartControls, renderChart, destroyChart } from './chart'
 
 // Global state
 
@@ -187,13 +188,21 @@ async function loadDatabaseSchema() {
 
 // Display query results
 function displayResults(response: QueryResponse, query: string) {
-  
+  // Destroy any existing chart before rendering new results
+  destroyChart();
+
   const resultsSection = document.getElementById('results-section') as HTMLElement;
   const sqlDisplay = document.getElementById('sql-display') as HTMLDivElement;
   const resultsContainer = document.getElementById('results-container') as HTMLDivElement;
-  
+
+  // Remove any existing chart section
+  const existingChartSection = resultsSection.querySelector('.chart-section');
+  if (existingChartSection) {
+    existingChartSection.remove();
+  }
+
   resultsSection.style.display = 'block';
-  
+
   // Display natural language query and SQL
   sqlDisplay.innerHTML = `
     <div class="query-display">
@@ -203,7 +212,7 @@ function displayResults(response: QueryResponse, query: string) {
       <strong>SQL:</strong> <code>${response.sql}</code>
     </div>
   `;
-  
+
   // Display results table
   if (response.error) {
     resultsContainer.innerHTML = `<div class="error-message">${response.error}</div>`;
@@ -214,28 +223,28 @@ function displayResults(response: QueryResponse, query: string) {
     resultsContainer.innerHTML = '';
     resultsContainer.appendChild(table);
   }
-  
+
   // Initialize toggle button
   const toggleButton = document.getElementById('toggle-results') as HTMLButtonElement;
   toggleButton.addEventListener('click', () => {
     resultsContainer.style.display = resultsContainer.style.display === 'none' ? 'block' : 'none';
     toggleButton.textContent = resultsContainer.style.display === 'none' ? 'Show' : 'Hide';
   });
-  
-  // Add export button if results exist
+
+  // Add export button and visualize button if results exist
   if (!response.error && response.results.length > 0) {
     const resultsHeader = document.querySelector('.results-header') as HTMLElement;
-    
+
     // Remove existing button container if any
     const existingButtonContainer = resultsHeader.querySelector('.results-header-buttons');
     if (existingButtonContainer) {
       existingButtonContainer.remove();
     }
-    
+
     // Create button container
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'results-header-buttons';
-    
+
     // Create export button
     const exportButton = document.createElement('button');
     exportButton.className = 'export-button secondary-button';
@@ -248,14 +257,63 @@ function displayResults(response: QueryResponse, query: string) {
         displayError('Failed to export results');
       }
     };
-    
+
+    // Create visualize button
+    const visualizeButton = document.createElement('button');
+    visualizeButton.className = 'visualize-button';
+    visualizeButton.innerHTML = '📈 Visualize';
+    visualizeButton.title = 'Visualize results as a chart';
+
+    visualizeButton.onclick = () => {
+      const existing = resultsSection.querySelector('.chart-section');
+      if (existing) {
+        destroyChart();
+        existing.remove();
+        return;
+      }
+      const { numeric, text } = classifyColumns(response.results, response.columns);
+
+      const chartSection = document.createElement('div');
+      chartSection.className = 'chart-section';
+
+      const canvas = document.createElement('canvas');
+      const canvasContainer = document.createElement('div');
+      canvasContainer.className = 'chart-canvas-container';
+      canvasContainer.appendChild(canvas);
+
+      const updateChart = (chartType: string, xColumn: string, yColumn: string) => {
+        const labels = response.results.map(row =>
+          row[xColumn] !== null && row[xColumn] !== undefined ? String(row[xColumn]) : ''
+        );
+        const values = response.results.map(row => {
+          const v = Number(row[yColumn]);
+          return isFinite(v) ? v : 0;
+        });
+        renderChart(canvas, chartType, labels, values, xColumn, yColumn);
+      };
+
+      const controls = createChartControls(numeric, text, updateChart);
+      chartSection.appendChild(controls);
+
+      if (numeric.length > 0) {
+        chartSection.appendChild(canvasContainer);
+        // Render with defaults
+        const defaultX = text.length > 0 ? text[0] : numeric[0];
+        const defaultY = numeric[0];
+        updateChart('bar', defaultX, defaultY);
+      }
+
+      resultsSection.appendChild(chartSection);
+    };
+
     // Remove toggle button from its current position
     toggleButton.remove();
-    
+
     // Add buttons to container
+    buttonContainer.appendChild(visualizeButton);
     buttonContainer.appendChild(exportButton);
     buttonContainer.appendChild(toggleButton);
-    
+
     // Add container to results header
     resultsHeader.appendChild(buttonContainer);
   }
