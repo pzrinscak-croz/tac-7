@@ -5,12 +5,35 @@ import { api } from './api/client'
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+  initializeProviderSelector();
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
   initializeRandomQueryButton();
   loadDatabaseSchema();
 });
+
+const PROVIDER_STORAGE_KEY = 'llm_provider';
+
+function getStoredProvider(): QueryRequest["llm_provider"] {
+  const stored = localStorage.getItem(PROVIDER_STORAGE_KEY);
+  if (stored === 'openai' || stored === 'anthropic') {
+    return stored;
+  }
+  return 'openai';
+}
+
+function setStoredProvider(value: QueryRequest["llm_provider"]): void {
+  localStorage.setItem(PROVIDER_STORAGE_KEY, value);
+}
+
+function initializeProviderSelector() {
+  const select = document.getElementById('llm-provider-select') as HTMLSelectElement;
+  select.value = getStoredProvider();
+  select.addEventListener('change', () => {
+    setStoredProvider(select.value as QueryRequest["llm_provider"]);
+  });
+}
 
 // Helper function to get download icon
 function getDownloadIcon(): string {
@@ -44,9 +67,10 @@ function initializeQueryInput() {
     queryButton.innerHTML = '<span class="loading"></span>';
     
     try {
+      const providerSelect = document.getElementById('llm-provider-select') as HTMLSelectElement;
       const response = await api.processQuery({
         query,
-        llm_provider: 'openai'  // Default to OpenAI
+        llm_provider: providerSelect.value as QueryRequest["llm_provider"]
       });
       
       displayResults(response, query);
