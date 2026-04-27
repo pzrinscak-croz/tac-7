@@ -7,6 +7,7 @@ A web application that converts natural language queries to SQL using AI, built 
 - 🗣️ Natural language to SQL conversion using OpenAI or Anthropic
 - 📁 Drag-and-drop file upload (.csv and .json)
 - 📊 Interactive table results display
+- 📈 Chart visualization (bar / line / pie) of query results using Chart.js
 - 🔒 SQL injection protection
 - ⚡ Fast development with Vite and uv
 
