@@ -2,12 +2,21 @@ import './style.css'
 import { api } from './api/client'
 
 // Global state
+let previewState: {
+  tableName: string;
+  page: number;
+  limit: number;
+  columns: string[];
+  rows: TablePreviewRow[];
+  totalPages: number;
+} | null = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
+  initializePreviewModal();
   initializeRandomQueryButton();
   loadDatabaseSchema();
 });
@@ -320,6 +329,11 @@ function displayTables(tables: TableSchema[]) {
     const tableName = document.createElement('div');
     tableName.className = 'table-name';
     tableName.textContent = table.name;
+    tableName.title = 'Click to preview and edit rows';
+    tableName.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openPreviewModal(table.name);
+    });
     
     const tableInfo = document.createElement('div');
     tableInfo.className = 'table-info';
@@ -518,6 +532,281 @@ function getTypeEmoji(type: string): string {
   
   // Default
   return '📊';
+}
+
+// Preview Modal Initialization
+function initializePreviewModal() {
+  const modal = document.getElementById('preview-modal') as HTMLElement;
+  const closeButton = modal.querySelector('.close-preview-modal') as HTMLButtonElement;
+  const addRowButton = document.getElementById('preview-add-row-button') as HTMLButtonElement;
+  const prevButton = document.getElementById('preview-prev-page') as HTMLButtonElement;
+  const nextButton = document.getElementById('preview-next-page') as HTMLButtonElement;
+
+  const closeModal = () => {
+    modal.style.display = 'none';
+    previewState = null;
+    const errorDiv = document.getElementById('preview-error') as HTMLElement;
+    errorDiv.style.display = 'none';
+    const container = document.getElementById('preview-table-container') as HTMLElement;
+    container.innerHTML = '';
+  };
+
+  closeButton.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  addRowButton.addEventListener('click', () => handleAddRow());
+  prevButton.addEventListener('click', () => {
+    if (!previewState || previewState.page <= 1) return;
+    previewState.page -= 1;
+    loadPreviewPage();
+  });
+  nextButton.addEventListener('click', () => {
+    if (!previewState || previewState.page >= previewState.totalPages) return;
+    previewState.page += 1;
+    loadPreviewPage();
+  });
+}
+
+function openPreviewModal(tableName: string) {
+  previewState = {
+    tableName,
+    page: 1,
+    limit: 50,
+    columns: [],
+    rows: [],
+    totalPages: 1
+  };
+  const titleEl = document.getElementById('preview-modal-title') as HTMLElement;
+  titleEl.textContent = `Table Preview: ${tableName}`;
+  const errorDiv = document.getElementById('preview-error') as HTMLElement;
+  errorDiv.style.display = 'none';
+  const modal = document.getElementById('preview-modal') as HTMLElement;
+  modal.style.display = 'flex';
+  loadPreviewPage();
+}
+
+function showPreviewError(message: string) {
+  const errorDiv = document.getElementById('preview-error') as HTMLElement;
+  errorDiv.textContent = message;
+  errorDiv.style.display = 'block';
+}
+
+function hidePreviewError() {
+  const errorDiv = document.getElementById('preview-error') as HTMLElement;
+  errorDiv.style.display = 'none';
+}
+
+async function loadPreviewPage() {
+  if (!previewState) return;
+  try {
+    const response = await api.getTablePreview(
+      previewState.tableName,
+      previewState.page,
+      previewState.limit
+    );
+    if (response.error) {
+      showPreviewError(response.error);
+      return;
+    }
+    hidePreviewError();
+    previewState.columns = response.columns;
+    previewState.rows = response.rows;
+    previewState.totalPages = response.total_pages;
+    previewState.page = response.page;
+    renderPreviewTable();
+
+    const indicator = document.getElementById('preview-page-indicator') as HTMLElement;
+    indicator.textContent = `Page ${response.page} of ${response.total_pages} (${response.total_rows} rows)`;
+
+    const prevButton = document.getElementById('preview-prev-page') as HTMLButtonElement;
+    const nextButton = document.getElementById('preview-next-page') as HTMLButtonElement;
+    prevButton.disabled = response.page <= 1;
+    nextButton.disabled = response.page >= response.total_pages;
+  } catch (error) {
+    showPreviewError(error instanceof Error ? error.message : 'Failed to load preview');
+  }
+}
+
+function renderPreviewTable() {
+  if (!previewState) return;
+  const container = document.getElementById('preview-table-container') as HTMLElement;
+  container.innerHTML = '';
+
+  const table = document.createElement('table');
+  table.className = 'preview-table';
+
+  // Header
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  previewState.columns.forEach((col) => {
+    const th = document.createElement('th');
+    th.textContent = col;
+    headerRow.appendChild(th);
+  });
+  const actionsTh = document.createElement('th');
+  actionsTh.textContent = 'Actions';
+  headerRow.appendChild(actionsTh);
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // Body
+  const tbody = document.createElement('tbody');
+  previewState.rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    tr.dataset.rowid = String(row.rowid);
+
+    previewState!.columns.forEach((col) => {
+      const td = document.createElement('td');
+      const span = document.createElement('span');
+      span.className = 'preview-cell';
+      span.dataset.rowid = String(row.rowid);
+      span.dataset.column = col;
+      const value = row.data[col];
+      if (value === null || value === undefined) {
+        span.textContent = '';
+        span.dataset.null = 'true';
+      } else {
+        span.textContent = String(value);
+      }
+      span.addEventListener('click', () => handleCellClick(span));
+      td.appendChild(span);
+      tr.appendChild(td);
+    });
+
+    const actionsTd = document.createElement('td');
+    actionsTd.className = 'preview-row-actions';
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'preview-delete-row';
+    deleteBtn.innerHTML = '&times;';
+    deleteBtn.title = 'Delete this row';
+    deleteBtn.addEventListener('click', () => handleDeleteRow(row.rowid));
+    actionsTd.appendChild(deleteBtn);
+    tr.appendChild(actionsTd);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  container.appendChild(table);
+}
+
+function handleCellClick(span: HTMLSpanElement) {
+  const originalText = span.textContent || '';
+  const input = document.createElement('input');
+  input.className = 'preview-cell-input';
+  input.value = originalText;
+  input.dataset.rowid = span.dataset.rowid || '';
+  input.dataset.column = span.dataset.column || '';
+
+  let reverted = false;
+  const revert = () => {
+    if (reverted) return;
+    reverted = true;
+    if (input.parentNode) {
+      input.parentNode.replaceChild(span, input);
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCellSave(input, span, originalText);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      revert();
+    }
+  });
+  input.addEventListener('blur', () => {
+    revert();
+  });
+
+  span.parentNode!.replaceChild(input, span);
+  input.focus();
+  input.select();
+}
+
+async function handleCellSave(
+  input: HTMLInputElement,
+  span: HTMLSpanElement,
+  originalText: string
+) {
+  if (!previewState) return;
+  const rowid = Number(input.dataset.rowid);
+  const column = input.dataset.column!;
+  const newValue = input.value;
+
+  if (newValue === originalText) {
+    if (input.parentNode) {
+      input.parentNode.replaceChild(span, input);
+    }
+    return;
+  }
+
+  try {
+    const response = await api.updateRow(previewState.tableName, {
+      rowid,
+      updates: { [column]: newValue }
+    });
+    if (response.error) {
+      showPreviewError(response.error);
+      return;
+    }
+    hidePreviewError();
+    span.textContent = newValue;
+    delete span.dataset.null;
+    if (input.parentNode) {
+      input.parentNode.replaceChild(span, input);
+    }
+    // Update in-memory state
+    const stateRow = previewState.rows.find((r) => r.rowid === rowid);
+    if (stateRow) {
+      stateRow.data[column] = newValue;
+    }
+  } catch (error) {
+    showPreviewError(error instanceof Error ? error.message : 'Failed to save cell');
+  }
+}
+
+async function handleAddRow() {
+  if (!previewState) return;
+  try {
+    const response = await api.insertRow(previewState.tableName, { data: {} });
+    if (response.error) {
+      showPreviewError(response.error);
+      return;
+    }
+    hidePreviewError();
+    // Jump to last page so the new row is visible
+    const totalPagesAfter = Math.max(1, Math.ceil(response.row_count / previewState.limit));
+    previewState.page = totalPagesAfter;
+    await loadPreviewPage();
+    await loadDatabaseSchema();
+  } catch (error) {
+    showPreviewError(error instanceof Error ? error.message : 'Failed to add row');
+  }
+}
+
+async function handleDeleteRow(rowid: number) {
+  if (!previewState) return;
+  if (!confirm('Are you sure you want to delete this row?')) return;
+  try {
+    const response = await api.deleteRow(previewState.tableName, rowid);
+    if (response.error) {
+      showPreviewError(response.error);
+      return;
+    }
+    hidePreviewError();
+    const totalPagesAfter = Math.max(1, Math.ceil(response.row_count / previewState.limit));
+    if (previewState.page > totalPagesAfter) {
+      previewState.page = totalPagesAfter;
+    }
+    await loadPreviewPage();
+    await loadDatabaseSchema();
+  } catch (error) {
+    showPreviewError(error instanceof Error ? error.message : 'Failed to delete row');
+  }
 }
 
 // Load sample data

@@ -84,3 +84,36 @@ interface HealthCheckResponse {
   version: string;
   uptime_seconds: number;
 }
+
+// Table Row Preview / Mutation Types
+interface TablePreviewRow {
+  rowid: number;
+  data: Record<string, any>;
+}
+
+interface TablePreviewResponse {
+  table_name: string;
+  columns: string[];
+  rows: TablePreviewRow[];
+  page: number;
+  limit: number;
+  total_rows: number;
+  total_pages: number;
+  error?: string;
+}
+
+interface RowUpdateRequest {
+  rowid: number;
+  updates: Record<string, any>;
+}
+
+interface RowInsertRequest {
+  data: Record<string, any>;
+}
+
+interface RowMutationResponse {
+  success: boolean;
+  rowid?: number;
+  row_count: number;
+  error?: string;
+}

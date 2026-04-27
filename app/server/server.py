@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from datetime import datetime
+import math
 import os
 import sqlite3
 import traceback
@@ -21,7 +22,12 @@ from core.data_models import (
     ColumnInfo,
     RandomQueryResponse,
     ExportRequest,
-    QueryExportRequest
+    QueryExportRequest,
+    TablePreviewRow,
+    TablePreviewResponse,
+    RowUpdateRequest,
+    RowInsertRequest,
+    RowMutationResponse
 )
 from core.file_processor import convert_csv_to_sqlite, convert_json_to_sqlite, convert_jsonl_to_sqlite
 from core.llm_processor import generate_sql, generate_random_query
@@ -308,6 +314,308 @@ async def delete_table(table_name: str):
         logger.error(f"[ERROR] Table deletion failed: {str(e)}")
         logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(500, f"Error deleting table: {str(e)}")
+
+def _get_table_columns(conn: sqlite3.Connection, table_name: str) -> list:
+    """Return list of column names for a table using PRAGMA table_info."""
+    cursor = execute_query_safely(
+        conn,
+        "PRAGMA table_info({table})",
+        identifier_params={'table': table_name}
+    )
+    return [row[1] for row in cursor.fetchall()]
+
+
+def _get_table_row_count(conn: sqlite3.Connection, table_name: str) -> int:
+    """Return total row count for a table."""
+    cursor = execute_query_safely(
+        conn,
+        "SELECT COUNT(*) FROM {table}",
+        identifier_params={'table': table_name}
+    )
+    return cursor.fetchone()[0]
+
+
+@app.get("/api/table/{table_name}/preview", response_model=TablePreviewResponse)
+async def preview_table(
+    table_name: str,
+    page: int = 1,
+    limit: int = 50
+) -> TablePreviewResponse:
+    """Return a paginated preview of a table's rows including the SQLite rowid."""
+    try:
+        # Clamp pagination params
+        if page < 1:
+            page = 1
+        if limit < 1:
+            limit = 1
+        if limit > 200:
+            limit = 200
+
+        # Validate table name
+        try:
+            validate_identifier(table_name, "table")
+        except SQLSecurityError as e:
+            raise HTTPException(400, str(e))
+
+        conn = sqlite3.connect("db/database.db")
+        conn.row_factory = sqlite3.Row
+
+        try:
+            if not check_table_exists(conn, table_name):
+                raise HTTPException(404, f"Table '{table_name}' not found")
+
+            columns = _get_table_columns(conn, table_name)
+            total_rows = _get_table_row_count(conn, table_name)
+            total_pages = max(1, math.ceil(total_rows / limit)) if total_rows > 0 else 1
+            offset = (page - 1) * limit
+
+            cursor = execute_query_safely(
+                conn,
+                "SELECT rowid, * FROM {table} ORDER BY rowid LIMIT ? OFFSET ?",
+                params=(limit, offset),
+                identifier_params={'table': table_name}
+            )
+            rows_raw = cursor.fetchall()
+
+            preview_rows = []
+            for row in rows_raw:
+                row_dict = dict(row)
+                rowid = row_dict.pop('rowid')
+                preview_rows.append(TablePreviewRow(rowid=rowid, data=row_dict))
+
+            response = TablePreviewResponse(
+                table_name=table_name,
+                columns=columns,
+                rows=preview_rows,
+                page=page,
+                limit=limit,
+                total_rows=total_rows,
+                total_pages=total_pages
+            )
+            logger.info(
+                f"[SUCCESS] Table preview: {table_name}, page={page}, "
+                f"limit={limit}, returned={len(preview_rows)}/{total_rows}"
+            )
+            return response
+        finally:
+            conn.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Table preview failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        return TablePreviewResponse(
+            table_name=table_name,
+            columns=[],
+            rows=[],
+            page=page,
+            limit=limit,
+            total_rows=0,
+            total_pages=1,
+            error=str(e)
+        )
+
+
+@app.patch("/api/table/{table_name}/row", response_model=RowMutationResponse)
+async def update_row(table_name: str, request: RowUpdateRequest) -> RowMutationResponse:
+    """Update a single row by rowid with the provided column/value pairs."""
+    try:
+        try:
+            validate_identifier(table_name, "table")
+        except SQLSecurityError as e:
+            raise HTTPException(400, str(e))
+
+        if not request.updates:
+            raise HTTPException(400, "Updates dict cannot be empty")
+
+        conn = sqlite3.connect("db/database.db")
+        try:
+            if not check_table_exists(conn, table_name):
+                raise HTTPException(404, f"Table '{table_name}' not found")
+
+            actual_columns = _get_table_columns(conn, table_name)
+
+            # Validate every column name in updates
+            for col_name in request.updates.keys():
+                try:
+                    validate_identifier(col_name, "column")
+                except SQLSecurityError as e:
+                    raise HTTPException(400, str(e))
+                if col_name not in actual_columns:
+                    raise HTTPException(
+                        400,
+                        f"Column '{col_name}' does not exist in table '{table_name}'"
+                    )
+
+            # Build dynamic SET clause
+            set_clauses = []
+            identifier_params = {'table': table_name}
+            update_values = []
+            for idx, (col, value) in enumerate(request.updates.items()):
+                placeholder_key = f"col_{idx}"
+                set_clauses.append(f"{{{placeholder_key}}} = ?")
+                identifier_params[placeholder_key] = col
+                update_values.append(value)
+
+            query = f"UPDATE {{table}} SET {', '.join(set_clauses)} WHERE rowid = ?"
+            params = (*update_values, request.rowid)
+
+            cursor = execute_query_safely(
+                conn,
+                query,
+                params=params,
+                identifier_params=identifier_params
+            )
+            conn.commit()
+
+            if cursor.rowcount == 0:
+                raise HTTPException(
+                    404,
+                    f"Row with rowid={request.rowid} not found in '{table_name}'"
+                )
+
+            row_count = _get_table_row_count(conn, table_name)
+            logger.info(
+                f"[SUCCESS] Row updated: table={table_name}, rowid={request.rowid}, "
+                f"columns={list(request.updates.keys())}"
+            )
+            return RowMutationResponse(
+                success=True,
+                rowid=request.rowid,
+                row_count=row_count
+            )
+        finally:
+            conn.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Row update failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error updating row: {str(e)}")
+
+
+@app.post("/api/table/{table_name}/row", response_model=RowMutationResponse)
+async def insert_row(table_name: str, request: RowInsertRequest) -> RowMutationResponse:
+    """Insert a new row into the table. Empty data inserts a row with default values."""
+    try:
+        try:
+            validate_identifier(table_name, "table")
+        except SQLSecurityError as e:
+            raise HTTPException(400, str(e))
+
+        conn = sqlite3.connect("db/database.db")
+        try:
+            if not check_table_exists(conn, table_name):
+                raise HTTPException(404, f"Table '{table_name}' not found")
+
+            actual_columns = _get_table_columns(conn, table_name)
+
+            for col_name in request.data.keys():
+                try:
+                    validate_identifier(col_name, "column")
+                except SQLSecurityError as e:
+                    raise HTTPException(400, str(e))
+                if col_name not in actual_columns:
+                    raise HTTPException(
+                        400,
+                        f"Column '{col_name}' does not exist in table '{table_name}'"
+                    )
+
+            if not request.data:
+                cursor = execute_query_safely(
+                    conn,
+                    "INSERT INTO {table} DEFAULT VALUES",
+                    identifier_params={'table': table_name}
+                )
+            else:
+                identifier_params = {'table': table_name}
+                col_placeholders = []
+                values = []
+                for idx, (col, value) in enumerate(request.data.items()):
+                    placeholder_key = f"col_{idx}"
+                    col_placeholders.append(f"{{{placeholder_key}}}")
+                    identifier_params[placeholder_key] = col
+                    values.append(value)
+
+                value_placeholders = ", ".join(["?"] * len(values))
+                query = (
+                    f"INSERT INTO {{table}} ({', '.join(col_placeholders)}) "
+                    f"VALUES ({value_placeholders})"
+                )
+                cursor = execute_query_safely(
+                    conn,
+                    query,
+                    params=tuple(values),
+                    identifier_params=identifier_params
+                )
+            conn.commit()
+            new_rowid = cursor.lastrowid
+            row_count = _get_table_row_count(conn, table_name)
+            logger.info(
+                f"[SUCCESS] Row inserted: table={table_name}, "
+                f"rowid={new_rowid}, columns={list(request.data.keys())}"
+            )
+            return RowMutationResponse(
+                success=True,
+                rowid=new_rowid,
+                row_count=row_count
+            )
+        finally:
+            conn.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Row insert failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error inserting row: {str(e)}")
+
+
+@app.delete("/api/table/{table_name}/row/{rowid}", response_model=RowMutationResponse)
+async def delete_row(table_name: str, rowid: int) -> RowMutationResponse:
+    """Delete a row by rowid."""
+    try:
+        try:
+            validate_identifier(table_name, "table")
+        except SQLSecurityError as e:
+            raise HTTPException(400, str(e))
+
+        conn = sqlite3.connect("db/database.db")
+        try:
+            if not check_table_exists(conn, table_name):
+                raise HTTPException(404, f"Table '{table_name}' not found")
+
+            cursor = execute_query_safely(
+                conn,
+                "DELETE FROM {table} WHERE rowid = ?",
+                params=(rowid,),
+                identifier_params={'table': table_name}
+            )
+            conn.commit()
+
+            if cursor.rowcount == 0:
+                raise HTTPException(
+                    404,
+                    f"Row with rowid={rowid} not found in '{table_name}'"
+                )
+
+            row_count = _get_table_row_count(conn, table_name)
+            logger.info(
+                f"[SUCCESS] Row deleted: table={table_name}, rowid={rowid}"
+            )
+            return RowMutationResponse(
+                success=True,
+                rowid=rowid,
+                row_count=row_count
+            )
+        finally:
+            conn.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Row delete failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error deleting row: {str(e)}")
+
 
 @app.post("/api/export/table")
 async def export_table(request: ExportRequest) -> Response:

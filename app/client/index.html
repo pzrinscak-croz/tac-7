@@ -46,6 +46,27 @@
           </div>
         </section>
 
+        <!-- Preview Modal -->
+        <div id="preview-modal" class="modal" style="display: none;">
+          <div class="modal-content modal-content-wide">
+            <div class="modal-header">
+              <h2 id="preview-modal-title">Table Preview</h2>
+              <button class="close-modal close-preview-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="preview-toolbar">
+                <button id="preview-add-row-button" class="primary-button">Add Row</button>
+                <span class="preview-spacer"></span>
+                <button id="preview-prev-page" class="secondary-button">Previous</button>
+                <span id="preview-page-indicator">Page 1 of 1</span>
+                <button id="preview-next-page" class="secondary-button">Next</button>
+              </div>
+              <div id="preview-error" class="error-message" style="display: none;"></div>
+              <div id="preview-table-container"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Upload Modal -->
         <div id="upload-modal" class="modal" style="display: none;">
           <div class="modal-content">
