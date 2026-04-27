@@ -36,6 +36,31 @@
           </div>
           <div id="sql-display" class="sql-display"></div>
           <div id="results-container" class="results-container"></div>
+
+          <!-- Visualization Panel -->
+          <section id="visualization-panel" class="visualization-panel" style="display: none;">
+            <div class="chart-type-selector" role="group" aria-label="Chart type">
+              <button type="button" class="chart-type-button active" data-chart-type="bar">Bar</button>
+              <button type="button" class="chart-type-button" data-chart-type="line">Line</button>
+              <button type="button" class="chart-type-button" data-chart-type="pie">Pie</button>
+            </div>
+            <div class="axis-controls">
+              <label class="axis-control">
+                <span>X-axis</span>
+                <select id="chart-x-axis"></select>
+              </label>
+              <label class="axis-control">
+                <span>Y-axis</span>
+                <select id="chart-y-axis"></select>
+              </label>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-canvas"></canvas>
+            </div>
+            <div id="chart-empty-state" class="chart-empty-state" style="display: none;">
+              No numeric columns available
+            </div>
+          </section>
         </section>
 
         <!-- Current Tables Section -->

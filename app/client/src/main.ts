@@ -1,7 +1,14 @@
 import './style.css'
 import { api } from './api/client'
+import Chart from 'chart.js/auto'
+
+type ChartType = 'bar' | 'line' | 'pie';
 
 // Global state
+let currentChart: Chart | null = null;
+let currentChartType: ChartType = 'bar';
+let currentResults: Record<string, any>[] = [];
+let visualizationInitialized = false;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,6 +22,265 @@ document.addEventListener('DOMContentLoaded', () => {
 // Helper function to get download icon
 function getDownloadIcon(): string {
   return '📊 CSV';
+}
+
+// Column-type detection helpers
+function isNumericValue(v: any): boolean {
+  if (v === null || v === undefined) return false;
+  if (typeof v === 'number') return Number.isFinite(v);
+  if (typeof v === 'string') {
+    const trimmed = v.trim();
+    if (trimmed === '') return false;
+    const n = Number(trimmed);
+    return Number.isFinite(n);
+  }
+  return false;
+}
+
+function isNumericColumn(results: Record<string, any>[], col: string): boolean {
+  let hasValue = false;
+  for (const row of results) {
+    const v = row[col];
+    if (v === null || v === undefined) continue;
+    hasValue = true;
+    if (!isNumericValue(v)) return false;
+  }
+  return hasValue;
+}
+
+function getColumnTypes(results: Record<string, any>[], columns: string[]): { numeric: string[]; categorical: string[] } {
+  const numeric: string[] = [];
+  const categorical: string[] = [];
+  for (const col of columns) {
+    if (isNumericColumn(results, col)) {
+      numeric.push(col);
+    } else {
+      categorical.push(col);
+    }
+  }
+  return { numeric, categorical };
+}
+
+function isIdLikeName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower === 'id' || lower === 'rowid';
+}
+
+function populateSelect(select: HTMLSelectElement, options: string[], selected: string) {
+  select.innerHTML = '';
+  for (const opt of options) {
+    const optionEl = document.createElement('option');
+    optionEl.value = opt;
+    optionEl.textContent = opt;
+    if (opt === selected) optionEl.selected = true;
+    select.appendChild(optionEl);
+  }
+}
+
+function renderChart(results: Record<string, any>[], type: ChartType, xCol: string, yCol: string) {
+  const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement | null;
+  if (!canvas) return;
+
+  if (currentChart) {
+    currentChart.destroy();
+    currentChart = null;
+  }
+
+  // Build numeric pairs (skip non-finite Y values)
+  const pairs: { x: string; y: number }[] = [];
+  for (const row of results) {
+    const yRaw = row[yCol];
+    if (yRaw === null || yRaw === undefined) continue;
+    const y = Number(yRaw);
+    if (!Number.isFinite(y)) continue;
+    const xVal = row[xCol];
+    const x = xVal === null || xVal === undefined ? '' : String(xVal);
+    pairs.push({ x, y });
+  }
+
+  if (type === 'pie') {
+    // Aggregate by x, sort desc, top 14 + "Other"
+    const totals = new Map<string, number>();
+    for (const { x, y } of pairs) {
+      totals.set(x, (totals.get(x) ?? 0) + y);
+    }
+    let entries = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
+    if (entries.length > 15) {
+      const top = entries.slice(0, 14);
+      const otherTotal = entries.slice(14).reduce((sum, [, v]) => sum + v, 0);
+      entries = [...top, ['Other', otherTotal]];
+    }
+    const labels = entries.map(([k]) => k);
+    const data = entries.map(([, v]) => v);
+    const grandTotal = data.reduce((s, v) => s + v, 0);
+
+    currentChart = new Chart(canvas, {
+      type: 'pie',
+      data: {
+        labels,
+        datasets: [{
+          label: yCol,
+          data,
+          backgroundColor: [
+            '#667eea', '#764ba2', '#28a745', '#dc3545', '#ffc107',
+            '#17a2b8', '#fd7e14', '#6f42c1', '#20c997', '#e83e8c',
+            '#6610f2', '#0dcaf0', '#198754', '#d63384', '#adb5bd'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'right' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const value = Number(ctx.parsed) || 0;
+                const pct = grandTotal > 0 ? ((value / grandTotal) * 100).toFixed(1) : '0.0';
+                return `${ctx.label}: ${value} (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+    return;
+  }
+
+  // bar / line
+  const labels = pairs.map(p => p.x);
+  const data = pairs.map(p => p.y);
+
+  currentChart = new Chart(canvas, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        label: yCol,
+        data,
+        backgroundColor: 'rgba(102, 126, 234, 0.5)',
+        borderColor: 'rgb(102, 126, 234)',
+        borderWidth: 2,
+        fill: type === 'line' ? false : true,
+        tension: type === 'line' ? 0.2 : 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: xCol }
+        },
+        y: {
+          title: { display: true, text: yCol },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+function initializeVisualization(results: Record<string, any>[], columns: string[]) {
+  currentResults = results;
+  const panel = document.getElementById('visualization-panel') as HTMLElement;
+  const emptyState = document.getElementById('chart-empty-state') as HTMLElement;
+  const xSelect = document.getElementById('chart-x-axis') as HTMLSelectElement;
+  const ySelect = document.getElementById('chart-y-axis') as HTMLSelectElement;
+  const typeButtons = panel.querySelectorAll<HTMLButtonElement>('.chart-type-button');
+  const chartContainer = panel.querySelector('.chart-container') as HTMLElement;
+  const axisControls = panel.querySelector('.axis-controls') as HTMLElement;
+  const typeSelector = panel.querySelector('.chart-type-selector') as HTMLElement;
+
+  const { numeric, categorical } = getColumnTypes(results, columns);
+
+  if (numeric.length === 0) {
+    emptyState.style.display = 'block';
+    chartContainer.style.display = 'none';
+    axisControls.style.display = 'none';
+    typeSelector.style.display = 'none';
+    if (currentChart) {
+      currentChart.destroy();
+      currentChart = null;
+    }
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  chartContainer.style.display = 'block';
+  axisControls.style.display = 'flex';
+  typeSelector.style.display = 'inline-flex';
+
+  // X options: categorical preferred; fallback to all columns
+  const xOptions = categorical.length > 0 ? categorical : columns.slice();
+  // Y options: numeric only
+  const yOptions = numeric;
+
+  // Defaults
+  const defaultX =
+    categorical.find(c => !isIdLikeName(c)) ??
+    xOptions.find(c => !isIdLikeName(c)) ??
+    xOptions[0];
+  const defaultY =
+    numeric.find(c => !isIdLikeName(c)) ?? numeric[0];
+
+  populateSelect(xSelect, xOptions, defaultX);
+  populateSelect(ySelect, yOptions, defaultY);
+
+  // Reset chart type to bar each new init
+  currentChartType = 'bar';
+  typeButtons.forEach(btn => {
+    const isBar = btn.dataset.chartType === 'bar';
+    btn.classList.toggle('active', isBar);
+  });
+
+  // Wire change handlers (replace by cloning to clear prior listeners)
+  const newXSelect = xSelect.cloneNode(true) as HTMLSelectElement;
+  xSelect.parentNode!.replaceChild(newXSelect, xSelect);
+  const newYSelect = ySelect.cloneNode(true) as HTMLSelectElement;
+  ySelect.parentNode!.replaceChild(newYSelect, ySelect);
+
+  newXSelect.addEventListener('change', () => {
+    renderChart(currentResults, currentChartType, newXSelect.value, newYSelect.value);
+  });
+  newYSelect.addEventListener('change', () => {
+    renderChart(currentResults, currentChartType, newXSelect.value, newYSelect.value);
+  });
+
+  typeButtons.forEach(btn => {
+    const newBtn = btn.cloneNode(true) as HTMLButtonElement;
+    btn.parentNode!.replaceChild(newBtn, btn);
+    newBtn.addEventListener('click', () => {
+      const t = newBtn.dataset.chartType as ChartType;
+      currentChartType = t;
+      panel.querySelectorAll<HTMLButtonElement>('.chart-type-button').forEach(b => {
+        b.classList.toggle('active', b.dataset.chartType === t);
+      });
+      renderChart(currentResults, currentChartType, newXSelect.value, newYSelect.value);
+    });
+  });
+
+  renderChart(currentResults, currentChartType, defaultX, defaultY);
+}
+
+function resetVisualization() {
+  if (currentChart) {
+    currentChart.destroy();
+    currentChart = null;
+  }
+  visualizationInitialized = false;
+  const panel = document.getElementById('visualization-panel') as HTMLElement | null;
+  if (panel) panel.style.display = 'none';
+  currentResults = [];
 }
 
 // Query Input Functionality
@@ -187,13 +453,16 @@ async function loadDatabaseSchema() {
 
 // Display query results
 function displayResults(response: QueryResponse, query: string) {
-  
+
   const resultsSection = document.getElementById('results-section') as HTMLElement;
   const sqlDisplay = document.getElementById('sql-display') as HTMLDivElement;
   const resultsContainer = document.getElementById('results-container') as HTMLDivElement;
-  
+
   resultsSection.style.display = 'block';
-  
+
+  // Reset any previous visualization (chart + panel) for the new query
+  resetVisualization();
+
   // Display natural language query and SQL
   sqlDisplay.innerHTML = `
     <div class="query-display">
@@ -203,7 +472,7 @@ function displayResults(response: QueryResponse, query: string) {
       <strong>SQL:</strong> <code>${response.sql}</code>
     </div>
   `;
-  
+
   // Display results table
   if (response.error) {
     resultsContainer.innerHTML = `<div class="error-message">${response.error}</div>`;
@@ -214,28 +483,52 @@ function displayResults(response: QueryResponse, query: string) {
     resultsContainer.innerHTML = '';
     resultsContainer.appendChild(table);
   }
-  
+
   // Initialize toggle button
   const toggleButton = document.getElementById('toggle-results') as HTMLButtonElement;
   toggleButton.addEventListener('click', () => {
     resultsContainer.style.display = resultsContainer.style.display === 'none' ? 'block' : 'none';
     toggleButton.textContent = resultsContainer.style.display === 'none' ? 'Show' : 'Hide';
   });
-  
-  // Add export button if results exist
+
+  // Add visualize + export buttons if results exist
   if (!response.error && response.results.length > 0) {
     const resultsHeader = document.querySelector('.results-header') as HTMLElement;
-    
+
     // Remove existing button container if any
     const existingButtonContainer = resultsHeader.querySelector('.results-header-buttons');
     if (existingButtonContainer) {
       existingButtonContainer.remove();
     }
-    
+
     // Create button container
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'results-header-buttons';
-    
+
+    // Create visualize button
+    const visualizeButton = document.createElement('button');
+    visualizeButton.className = 'visualize-button';
+    visualizeButton.id = 'visualize-button';
+    visualizeButton.innerHTML = '📈 Visualize';
+    visualizeButton.title = 'Visualize results as a chart';
+    visualizeButton.onclick = () => {
+      const panel = document.getElementById('visualization-panel') as HTMLElement;
+      const isHidden = panel.style.display === 'none' || panel.style.display === '';
+      if (isHidden) {
+        panel.style.display = 'block';
+        if (!visualizationInitialized) {
+          initializeVisualization(response.results, response.columns);
+          visualizationInitialized = true;
+        }
+        visualizeButton.classList.add('active');
+        visualizeButton.innerHTML = '📈 Hide Chart';
+      } else {
+        panel.style.display = 'none';
+        visualizeButton.classList.remove('active');
+        visualizeButton.innerHTML = '📈 Visualize';
+      }
+    };
+
     // Create export button
     const exportButton = document.createElement('button');
     exportButton.className = 'export-button secondary-button';
@@ -248,16 +541,22 @@ function displayResults(response: QueryResponse, query: string) {
         displayError('Failed to export results');
       }
     };
-    
+
     // Remove toggle button from its current position
     toggleButton.remove();
-    
-    // Add buttons to container
+
+    // Add buttons to container (visualize first, then export, then toggle)
+    buttonContainer.appendChild(visualizeButton);
     buttonContainer.appendChild(exportButton);
     buttonContainer.appendChild(toggleButton);
-    
+
     // Add container to results header
     resultsHeader.appendChild(buttonContainer);
+  } else {
+    // No results or error: ensure no Visualize button is rendered.
+    const resultsHeader = document.querySelector('.results-header') as HTMLElement;
+    const existingVisualize = resultsHeader.querySelector('#visualize-button');
+    if (existingVisualize) existingVisualize.remove();
   }
 }
 
