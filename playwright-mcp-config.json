@@ -6,7 +6,7 @@
     },
     "contextOptions": {
       "recordVideo": {
-        "dir": "./videos",
+        "dir": "/Users/pzrinscak/dev/idd/course-tac/tac-7/trees/28f16876/videos",
         "size": {
           "width": 1920,
           "height": 1080
