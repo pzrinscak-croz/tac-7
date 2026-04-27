@@ -95,6 +95,23 @@ h2 {
 .query-controls-left {
   display: flex;
   gap: 1rem;
+  align-items: center;
+}
+
+#llm-provider-select {
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+#llm-provider-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
 }
 
 /* Buttons */
