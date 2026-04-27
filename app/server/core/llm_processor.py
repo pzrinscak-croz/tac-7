@@ -1,10 +1,30 @@
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from openai import OpenAI
 from anthropic import Anthropic
 from core.data_models import QueryRequest
 
-def generate_sql_with_openai(query_text: str, schema_info: Dict[str, Any]) -> str:
+
+def _build_previous_turn_block(previous_query: Optional[str], previous_sql: Optional[str]) -> str:
+    """Return the conversational-context preamble, or empty string if context is not active."""
+    if not previous_query or not previous_sql:
+        return ""
+    return (
+        "Previous turn (use as conversational context for the new question):\n"
+        f"- Previous question: \"{previous_query}\"\n"
+        f"- Previous SQL: {previous_sql}\n"
+        "\n"
+        "When the new question references the previous result with words like \"that\", \"those\", \"it\", \"now filter...\", \"now group by...\", \"show that as...\", interpret it as a refinement of the previous SQL. Do not re-explain or repeat the previous SQL; produce a single new SQL statement that satisfies the new question.\n"
+        "\n"
+    )
+
+
+def generate_sql_with_openai(
+    query_text: str,
+    schema_info: Dict[str, Any],
+    previous_query: Optional[str] = None,
+    previous_sql: Optional[str] = None,
+) -> str:
     """
     Generate SQL query using OpenAI API
     """
@@ -13,18 +33,19 @@ def generate_sql_with_openai(query_text: str, schema_info: Dict[str, Any]) -> st
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable not set")
-        
+
         client = OpenAI(api_key=api_key)
-        
+
         # Format schema for prompt
         schema_description = format_schema_for_prompt(schema_info)
-        
+        previous_turn_block = _build_previous_turn_block(previous_query, previous_sql)
+
         # Create prompt
         prompt = f"""Given the following database schema:
 
 {schema_description}
 
-Convert this natural language query to SQL: "{query_text}"
+{previous_turn_block}Convert this natural language query to SQL: "{query_text}"
 
 Rules:
 - Return ONLY the SQL query, no explanations
@@ -65,7 +86,12 @@ SQL Query:"""
     except Exception as e:
         raise Exception(f"Error generating SQL with OpenAI: {str(e)}")
 
-def generate_sql_with_anthropic(query_text: str, schema_info: Dict[str, Any]) -> str:
+def generate_sql_with_anthropic(
+    query_text: str,
+    schema_info: Dict[str, Any],
+    previous_query: Optional[str] = None,
+    previous_sql: Optional[str] = None,
+) -> str:
     """
     Generate SQL query using Anthropic API
     """
@@ -74,18 +100,19 @@ def generate_sql_with_anthropic(query_text: str, schema_info: Dict[str, Any]) ->
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-        
+
         client = Anthropic(api_key=api_key)
-        
+
         # Format schema for prompt
         schema_description = format_schema_for_prompt(schema_info)
-        
+        previous_turn_block = _build_previous_turn_block(previous_query, previous_sql)
+
         # Create prompt
         prompt = f"""Given the following database schema:
 
 {schema_description}
 
-Convert this natural language query to SQL: "{query_text}"
+{previous_turn_block}Convert this natural language query to SQL: "{query_text}"
 
 Rules:
 - Return ONLY the SQL query, no explanations
@@ -271,15 +298,35 @@ def generate_sql(request: QueryRequest, schema_info: Dict[str, Any]) -> str:
     """
     openai_key = os.environ.get("OPENAI_API_KEY")
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    
+
     # Check API key availability first (OpenAI priority)
     if openai_key:
-        return generate_sql_with_openai(request.query, schema_info)
+        return generate_sql_with_openai(
+            request.query,
+            schema_info,
+            previous_query=request.previous_query,
+            previous_sql=request.previous_sql,
+        )
     elif anthropic_key:
-        return generate_sql_with_anthropic(request.query, schema_info)
-    
+        return generate_sql_with_anthropic(
+            request.query,
+            schema_info,
+            previous_query=request.previous_query,
+            previous_sql=request.previous_sql,
+        )
+
     # Fall back to request preference if both keys available or neither available
     if request.llm_provider == "openai":
-        return generate_sql_with_openai(request.query, schema_info)
+        return generate_sql_with_openai(
+            request.query,
+            schema_info,
+            previous_query=request.previous_query,
+            previous_sql=request.previous_sql,
+        )
     else:
-        return generate_sql_with_anthropic(request.query, schema_info)
+        return generate_sql_with_anthropic(
+            request.query,
+            schema_info,
+            previous_query=request.previous_query,
+            previous_sql=request.previous_sql,
+        )

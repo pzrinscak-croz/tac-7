@@ -13,8 +13,12 @@
         
         <!-- Query Input Section -->
         <section id="query-section" class="query-section">
-          <textarea 
-            id="query-input" 
+          <div id="context-banner" class="context-banner" style="display: none;">
+            <span class="context-banner-label">Continuing from: <em id="context-previous-query"></em></span>
+            <button id="clear-context-button" class="clear-context-button" type="button">Clear context</button>
+          </div>
+          <textarea
+            id="query-input"
             placeholder="Ask a question about your data... (e.g., 'Show me users who signed up last week')"
             rows="4"
             autofocus

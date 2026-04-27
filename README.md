@@ -87,6 +87,7 @@ bun run dev
    - Uploading a file with the same name will overwrite the existing table
 2. **Query Your Data**: Type a natural language query like "Show me all users who signed up last week"
    - Press `Cmd+Enter` (Mac) or `Ctrl+Enter` (Windows/Linux) to run the query
+   - After a successful query, follow-up questions like "now filter that by city" use the previous question and SQL as context. A "Continuing from: '{previous query}'" label appears above the input. Click "Clear context" to reset to a standalone query.
 3. **View Results**: See the generated SQL and results in a table format
 4. **Manage Tables**: Click the × button on any table to remove it
 
@@ -129,7 +130,7 @@ bun run preview            # Preview production build
 ## API Endpoints
 
 - `POST /api/upload` - Upload CSV/JSON file
-- `POST /api/query` - Process natural language query
+- `POST /api/query` - Process natural language query (optional `previous_query` and `previous_sql` fields enable conversational follow-ups)
 - `GET /api/schema` - Get database schema
 - `POST /api/insights` - Generate column insights
 - `GET /api/health` - Health check

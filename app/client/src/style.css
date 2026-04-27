@@ -92,6 +92,46 @@ h2 {
   margin-top: 1rem;
 }
 
+.context-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: rgba(102, 126, 234, 0.08);
+  border: 1px solid rgba(102, 126, 234, 0.25);
+  border-radius: 6px;
+}
+
+.context-banner-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.context-banner-label em {
+  font-style: italic;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.clear-context-button {
+  background: none;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.813rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-context-button:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
 .query-controls-left {
   display: flex;
   gap: 1rem;
