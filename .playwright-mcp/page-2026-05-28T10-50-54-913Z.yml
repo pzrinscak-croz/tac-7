@@ -1,0 +1,252 @@
+- generic [ref=e3]:
+  - heading "Natural Language SQL Interface" [level=1] [ref=e4]
+  - generic [ref=e5]:
+    - textbox "Ask a question about your data... (e.g., 'Show me users who signed up last week')" [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - button "Query" [ref=e9] [cursor=pointer]
+        - button "Upload" [ref=e10] [cursor=pointer]
+      - button "Generate Random Query" [ref=e11] [cursor=pointer]
+  - generic [ref=e12]:
+    - heading "Available Tables" [level=3] [ref=e13]
+    - generic [ref=e14]:
+      - generic [ref=e281]:
+        - generic [ref=e282]:
+          - generic [ref=e283]:
+            - generic "Click to preview and edit" [ref=e284] [cursor=pointer]: users
+            - generic [ref=e285]: 21 rows, 6 columns
+          - generic [ref=e286]:
+            - button "📊 CSV" [ref=e287] [cursor=pointer]
+            - button "×" [ref=e288] [cursor=pointer]
+        - generic [ref=e289]:
+          - generic [ref=e290]: id🔢 INTEGER
+          - generic [ref=e291]: name📝 TEXT
+          - generic [ref=e292]: email📝 TEXT
+          - generic [ref=e293]: signup_date📝 TEXT
+          - generic [ref=e294]: age🔢 INTEGER
+          - generic [ref=e295]: city📝 TEXT
+      - generic [ref=e296]:
+        - generic [ref=e297]:
+          - generic [ref=e298]:
+            - generic "Click to preview and edit" [ref=e299] [cursor=pointer]: products
+            - generic [ref=e300]: 32 rows, 6 columns
+          - generic [ref=e301]:
+            - button "📊 CSV" [ref=e302] [cursor=pointer]
+            - button "×" [ref=e303] [cursor=pointer]
+        - generic [ref=e304]:
+          - generic [ref=e305]: product_id🔢 INTEGER
+          - generic [ref=e306]: product_name📝 TEXT
+          - generic [ref=e307]: category📝 TEXT
+          - generic [ref=e308]: price💯 REAL
+          - generic [ref=e309]: stock_quantity🔢 INTEGER
+          - generic [ref=e310]: last_restocked📝 TEXT
+  - generic [ref=e46]:
+    - generic [ref=e47]:
+      - 'heading "Preview: users" [level=2] [ref=e48]'
+      - button "×" [ref=e49] [cursor=pointer]
+    - generic [ref=e50]:
+      - button "+ Add Row" [ref=e311] [cursor=pointer]
+      - table [ref=e312]:
+        - rowgroup [ref=e313]:
+          - row "id name email signup_date age city" [ref=e314]:
+            - columnheader [ref=e315]
+            - columnheader "id" [ref=e316]
+            - columnheader "name" [ref=e317]
+            - columnheader "email" [ref=e318]
+            - columnheader "signup_date" [ref=e319]
+            - columnheader "age" [ref=e320]
+            - columnheader "city" [ref=e321]
+        - rowgroup [ref=e322]:
+          - row "× 1 Edited Value john@example.com 2025-10-15 28 New York" [ref=e323]:
+            - cell "×" [ref=e324]:
+              - button "×" [ref=e325] [cursor=pointer]
+            - cell "1" [ref=e326]
+            - cell "Edited Value" [ref=e327]
+            - cell "john@example.com" [ref=e328]
+            - cell "2025-10-15" [ref=e329]
+            - cell "28" [ref=e330]
+            - cell "New York" [ref=e331]
+          - row "× 2 Jane Smith jane@example.com 2025-10-20 32 Los Angeles" [ref=e332]:
+            - cell "×" [ref=e333]:
+              - button "×" [ref=e334] [cursor=pointer]
+            - cell "2" [ref=e335]
+            - cell "Jane Smith" [ref=e336]
+            - cell "jane@example.com" [ref=e337]
+            - cell "2025-10-20" [ref=e338]
+            - cell "32" [ref=e339]
+            - cell "Los Angeles" [ref=e340]
+          - row "× 3 Bob Johnson bob@example.com 2025-11-01 45 Chicago" [ref=e341]:
+            - cell "×" [ref=e342]:
+              - button "×" [ref=e343] [cursor=pointer]
+            - cell "3" [ref=e344]
+            - cell "Bob Johnson" [ref=e345]
+            - cell "bob@example.com" [ref=e346]
+            - cell "2025-11-01" [ref=e347]
+            - cell "45" [ref=e348]
+            - cell "Chicago" [ref=e349]
+          - row "× 4 Alice Brown alice@example.com 2025-11-10 27 Houston" [ref=e350]:
+            - cell "×" [ref=e351]:
+              - button "×" [ref=e352] [cursor=pointer]
+            - cell "4" [ref=e353]
+            - cell "Alice Brown" [ref=e354]
+            - cell "alice@example.com" [ref=e355]
+            - cell "2025-11-10" [ref=e356]
+            - cell "27" [ref=e357]
+            - cell "Houston" [ref=e358]
+          - row "× 5 Charlie Wilson charlie@example.com 2025-11-15 35 Phoenix" [ref=e359]:
+            - cell "×" [ref=e360]:
+              - button "×" [ref=e361] [cursor=pointer]
+            - cell "5" [ref=e362]
+            - cell "Charlie Wilson" [ref=e363]
+            - cell "charlie@example.com" [ref=e364]
+            - cell "2025-11-15" [ref=e365]
+            - cell "35" [ref=e366]
+            - cell "Phoenix" [ref=e367]
+          - row "× 6 Diana Martinez diana@example.com 2025-11-20 29 Philadelphia" [ref=e368]:
+            - cell "×" [ref=e369]:
+              - button "×" [ref=e370] [cursor=pointer]
+            - cell "6" [ref=e371]
+            - cell "Diana Martinez" [ref=e372]
+            - cell "diana@example.com" [ref=e373]
+            - cell "2025-11-20" [ref=e374]
+            - cell "29" [ref=e375]
+            - cell "Philadelphia" [ref=e376]
+          - row "× 7 Ethan Davis ethan@example.com 2025-11-25 38 San Antonio" [ref=e377]:
+            - cell "×" [ref=e378]:
+              - button "×" [ref=e379] [cursor=pointer]
+            - cell "7" [ref=e380]
+            - cell "Ethan Davis" [ref=e381]
+            - cell "ethan@example.com" [ref=e382]
+            - cell "2025-11-25" [ref=e383]
+            - cell "38" [ref=e384]
+            - cell "San Antonio" [ref=e385]
+          - row "× 8 Fiona Garcia fiona@example.com 2025-12-01 41 San Diego" [ref=e386]:
+            - cell "×" [ref=e387]:
+              - button "×" [ref=e388] [cursor=pointer]
+            - cell "8" [ref=e389]
+            - cell "Fiona Garcia" [ref=e390]
+            - cell "fiona@example.com" [ref=e391]
+            - cell "2025-12-01" [ref=e392]
+            - cell "41" [ref=e393]
+            - cell "San Diego" [ref=e394]
+          - row "× 9 George Rodriguez george@example.com 2025-12-05 33 Dallas" [ref=e395]:
+            - cell "×" [ref=e396]:
+              - button "×" [ref=e397] [cursor=pointer]
+            - cell "9" [ref=e398]
+            - cell "George Rodriguez" [ref=e399]
+            - cell "george@example.com" [ref=e400]
+            - cell "2025-12-05" [ref=e401]
+            - cell "33" [ref=e402]
+            - cell "Dallas" [ref=e403]
+          - row "× 10 Hannah Lee hannah@example.com 2025-12-10 26 San Jose" [ref=e404]:
+            - cell "×" [ref=e405]:
+              - button "×" [ref=e406] [cursor=pointer]
+            - cell "10" [ref=e407]
+            - cell "Hannah Lee" [ref=e408]
+            - cell "hannah@example.com" [ref=e409]
+            - cell "2025-12-10" [ref=e410]
+            - cell "26" [ref=e411]
+            - cell "San Jose" [ref=e412]
+          - row "× 11 Isaac Walker isaac@example.com 2025-12-15 42 Austin" [ref=e413]:
+            - cell "×" [ref=e414]:
+              - button "×" [ref=e415] [cursor=pointer]
+            - cell "11" [ref=e416]
+            - cell "Isaac Walker" [ref=e417]
+            - cell "isaac@example.com" [ref=e418]
+            - cell "2025-12-15" [ref=e419]
+            - cell "42" [ref=e420]
+            - cell "Austin" [ref=e421]
+          - row "× 12 Julia White julia@example.com 2025-12-20 31 Jacksonville" [ref=e422]:
+            - cell "×" [ref=e423]:
+              - button "×" [ref=e424] [cursor=pointer]
+            - cell "12" [ref=e425]
+            - cell "Julia White" [ref=e426]
+            - cell "julia@example.com" [ref=e427]
+            - cell "2025-12-20" [ref=e428]
+            - cell "31" [ref=e429]
+            - cell "Jacksonville" [ref=e430]
+          - row "× 13 Kevin Thompson kevin@example.com 2025-12-25 37 Fort Worth" [ref=e431]:
+            - cell "×" [ref=e432]:
+              - button "×" [ref=e433] [cursor=pointer]
+            - cell "13" [ref=e434]
+            - cell "Kevin Thompson" [ref=e435]
+            - cell "kevin@example.com" [ref=e436]
+            - cell "2025-12-25" [ref=e437]
+            - cell "37" [ref=e438]
+            - cell "Fort Worth" [ref=e439]
+          - row "× 14 Laura Anderson laura@example.com 2026-01-01 30 Columbus" [ref=e440]:
+            - cell "×" [ref=e441]:
+              - button "×" [ref=e442] [cursor=pointer]
+            - cell "14" [ref=e443]
+            - cell "Laura Anderson" [ref=e444]
+            - cell "laura@example.com" [ref=e445]
+            - cell "2026-01-01" [ref=e446]
+            - cell "30" [ref=e447]
+            - cell "Columbus" [ref=e448]
+          - row "× 15 Michael Chen michael@example.com 2026-01-05 34 Charlotte" [ref=e449]:
+            - cell "×" [ref=e450]:
+              - button "×" [ref=e451] [cursor=pointer]
+            - cell "15" [ref=e452]
+            - cell "Michael Chen" [ref=e453]
+            - cell "michael@example.com" [ref=e454]
+            - cell "2026-01-05" [ref=e455]
+            - cell "34" [ref=e456]
+            - cell "Charlotte" [ref=e457]
+          - row "× 16 Nina Patel nina@example.com 2026-01-10 28 San Francisco" [ref=e458]:
+            - cell "×" [ref=e459]:
+              - button "×" [ref=e460] [cursor=pointer]
+            - cell "16" [ref=e461]
+            - cell "Nina Patel" [ref=e462]
+            - cell "nina@example.com" [ref=e463]
+            - cell "2026-01-10" [ref=e464]
+            - cell "28" [ref=e465]
+            - cell "San Francisco" [ref=e466]
+          - row "× 17 Oliver Kim oliver@example.com 2026-01-15 36 Indianapolis" [ref=e467]:
+            - cell "×" [ref=e468]:
+              - button "×" [ref=e469] [cursor=pointer]
+            - cell "17" [ref=e470]
+            - cell "Oliver Kim" [ref=e471]
+            - cell "oliver@example.com" [ref=e472]
+            - cell "2026-01-15" [ref=e473]
+            - cell "36" [ref=e474]
+            - cell "Indianapolis" [ref=e475]
+          - row "× 18 Patricia Lopez patricia@example.com 2026-01-20 39 Seattle" [ref=e476]:
+            - cell "×" [ref=e477]:
+              - button "×" [ref=e478] [cursor=pointer]
+            - cell "18" [ref=e479]
+            - cell "Patricia Lopez" [ref=e480]
+            - cell "patricia@example.com" [ref=e481]
+            - cell "2026-01-20" [ref=e482]
+            - cell "39" [ref=e483]
+            - cell "Seattle" [ref=e484]
+          - row "× 19 Quinn Turner quinn@example.com 2026-01-25 25 Denver" [ref=e485]:
+            - cell "×" [ref=e486]:
+              - button "×" [ref=e487] [cursor=pointer]
+            - cell "19" [ref=e488]
+            - cell "Quinn Turner" [ref=e489]
+            - cell "quinn@example.com" [ref=e490]
+            - cell "2026-01-25" [ref=e491]
+            - cell "25" [ref=e492]
+            - cell "Denver" [ref=e493]
+          - row "× 20 Rachel Green rachel@example.com 2026-02-01 32 Washington" [ref=e494]:
+            - cell "×" [ref=e495]:
+              - button "×" [ref=e496] [cursor=pointer]
+            - cell "20" [ref=e497]
+            - cell "Rachel Green" [ref=e498]
+            - cell "rachel@example.com" [ref=e499]
+            - cell "2026-02-01" [ref=e500]
+            - cell "32" [ref=e501]
+            - cell "Washington" [ref=e502]
+          - row "×" [ref=e503]:
+            - cell "×" [ref=e504]:
+              - button "×" [ref=e505] [cursor=pointer]
+            - cell [ref=e506]
+            - cell [ref=e507]
+            - cell [ref=e508]
+            - cell [ref=e509]
+            - cell [ref=e510]
+            - cell [ref=e511]
+      - generic [ref=e245]:
+        - button "Prev" [disabled] [ref=e512]
+        - generic [ref=e513]: Page 1 of 1
+        - button "Next" [disabled] [ref=e514]
