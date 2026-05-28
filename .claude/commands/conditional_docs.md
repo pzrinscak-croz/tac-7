@@ -61,3 +61,10 @@ This prompt helps you determine what documentation you should read based on the 
     - When working with upload button text or labeling
     - When implementing UI text changes for data upload functionality
     - When troubleshooting upload button display or terminology
+
+- app_docs/feature-4865d694-chart-visualization.md
+  - Conditions:
+    - When working with chart visualization functionality
+    - When implementing Chart.js integration
+    - When adding chart type selectors or axis dropdowns
+    - When troubleshooting chart rendering or data display
