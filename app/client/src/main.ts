@@ -2,12 +2,24 @@ import './style.css'
 import { api } from './api/client'
 
 // Global state
+interface PreviewState {
+  tableName: string;
+  page: number;
+  limit: number;
+  totalPages: number;
+  totalRows: number;
+  columns: string[];
+  rows: TablePreviewRow[];
+}
+
+let currentPreview: PreviewState | null = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
+  initializePreviewModal();
   initializeRandomQueryButton();
   loadDatabaseSchema();
 });
@@ -318,8 +330,10 @@ function displayTables(tables: TableSchema[]) {
     tableLeft.style.gap = '1rem';
     
     const tableName = document.createElement('div');
-    tableName.className = 'table-name';
+    tableName.className = 'table-name table-name-clickable';
     tableName.textContent = table.name;
+    tableName.title = 'Click to preview and edit this table';
+    tableName.onclick = () => openPreview(table.name);
     
     const tableInfo = document.createElement('div');
     tableInfo.className = 'table-info';
@@ -518,6 +532,271 @@ function getTypeEmoji(type: string): string {
   
   // Default
   return '📊';
+}
+
+// Preview Modal
+function initializePreviewModal() {
+  const modal = document.getElementById('preview-modal') as HTMLElement;
+  const closeButton = modal.querySelector('.close-preview-modal') as HTMLButtonElement;
+  const prevButton = document.getElementById('preview-prev') as HTMLButtonElement;
+  const nextButton = document.getElementById('preview-next') as HTMLButtonElement;
+  const addRowButton = document.getElementById('add-row-button') as HTMLButtonElement;
+
+  const closePreview = () => {
+    modal.style.display = 'none';
+    currentPreview = null;
+  };
+
+  closeButton.addEventListener('click', closePreview);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closePreview();
+  });
+
+  prevButton.addEventListener('click', () => {
+    if (!currentPreview || currentPreview.page <= 1) return;
+    currentPreview.page -= 1;
+    loadPreviewPage();
+  });
+
+  nextButton.addEventListener('click', () => {
+    if (!currentPreview || currentPreview.page >= currentPreview.totalPages) return;
+    currentPreview.page += 1;
+    loadPreviewPage();
+  });
+
+  addRowButton.addEventListener('click', async () => {
+    if (!currentPreview) return;
+    addRowButton.disabled = true;
+    try {
+      const response = await api.insertRow(currentPreview.tableName, { values: {} });
+      if (!response.success) {
+        displayError(response.error || 'Failed to add row');
+        return;
+      }
+      // Jump to last page so user can see the new row
+      const newTotal = currentPreview.totalRows + 1;
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / currentPreview.limit));
+      currentPreview.page = newTotalPages;
+      await loadPreviewPage();
+      await loadDatabaseSchema();
+    } catch (error) {
+      displayError(error instanceof Error ? error.message : 'Failed to add row');
+    } finally {
+      addRowButton.disabled = false;
+    }
+  });
+}
+
+async function openPreview(tableName: string) {
+  const modal = document.getElementById('preview-modal') as HTMLElement;
+  const title = document.getElementById('preview-modal-title') as HTMLElement;
+  title.textContent = `Preview: ${tableName}`;
+  currentPreview = {
+    tableName,
+    page: 1,
+    limit: 50,
+    totalPages: 1,
+    totalRows: 0,
+    columns: [],
+    rows: []
+  };
+  modal.style.display = 'flex';
+  await loadPreviewPage();
+}
+
+async function loadPreviewPage() {
+  if (!currentPreview) return;
+  try {
+    const response = await api.getTablePreview(
+      currentPreview.tableName,
+      currentPreview.page,
+      currentPreview.limit
+    );
+    if (response.error) {
+      displayError(response.error);
+      return;
+    }
+
+    // Clamp page in case rows were deleted past the current page
+    const clampedPage = Math.min(Math.max(1, response.page), response.total_pages);
+    if (clampedPage !== currentPreview.page) {
+      currentPreview.page = clampedPage;
+      const adjusted = await api.getTablePreview(
+        currentPreview.tableName,
+        clampedPage,
+        currentPreview.limit
+      );
+      currentPreview.columns = adjusted.columns;
+      currentPreview.rows = adjusted.rows;
+      currentPreview.totalPages = adjusted.total_pages;
+      currentPreview.totalRows = adjusted.total_rows;
+    } else {
+      currentPreview.columns = response.columns;
+      currentPreview.rows = response.rows;
+      currentPreview.totalPages = response.total_pages;
+      currentPreview.totalRows = response.total_rows;
+    }
+
+    renderPreviewTable(currentPreview.columns, currentPreview.rows);
+
+    const pageLabel = document.getElementById('preview-page-label') as HTMLElement;
+    pageLabel.textContent = `Page ${currentPreview.page} of ${currentPreview.totalPages}`;
+
+    const status = document.getElementById('preview-status') as HTMLElement;
+    status.textContent = `${currentPreview.totalRows} rows total`;
+
+    const prevButton = document.getElementById('preview-prev') as HTMLButtonElement;
+    const nextButton = document.getElementById('preview-next') as HTMLButtonElement;
+    prevButton.disabled = currentPreview.page <= 1;
+    nextButton.disabled = currentPreview.page >= currentPreview.totalPages;
+  } catch (error) {
+    displayError(error instanceof Error ? error.message : 'Failed to load preview');
+  }
+}
+
+function renderPreviewTable(columns: string[], rows: TablePreviewRow[]) {
+  const container = document.getElementById('preview-table-container') as HTMLDivElement;
+  container.innerHTML = '';
+
+  const table = document.createElement('table');
+  table.className = 'preview-table';
+
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  columns.forEach(col => {
+    const th = document.createElement('th');
+    th.textContent = col;
+    headerRow.appendChild(th);
+  });
+  const deleteHeader = document.createElement('th');
+  deleteHeader.textContent = '';
+  headerRow.appendChild(deleteHeader);
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  if (rows.length === 0) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = columns.length + 1;
+    td.textContent = 'No rows. Click "+ Add Row" to insert one.';
+    td.style.textAlign = 'center';
+    td.style.padding = '2rem';
+    td.style.color = 'var(--text-secondary)';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  } else {
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.dataset.rowid = String(row.rowid);
+
+      columns.forEach(col => {
+        const td = document.createElement('td');
+        td.className = 'editable';
+        td.dataset.column = col;
+        const val = row.values[col];
+        td.textContent = val === null || val === undefined ? '' : String(val);
+        td.addEventListener('click', () => beginCellEdit(td, row.rowid, col));
+        tr.appendChild(td);
+      });
+
+      const deleteTd = document.createElement('td');
+      deleteTd.className = 'delete-cell';
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'delete-row-button';
+      deleteButton.textContent = 'Delete';
+      deleteButton.onclick = () => handleDeleteRow(row.rowid);
+      deleteTd.appendChild(deleteButton);
+      tr.appendChild(deleteTd);
+
+      tbody.appendChild(tr);
+    });
+  }
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
+function beginCellEdit(td: HTMLTableCellElement, rowid: number, column: string) {
+  if (td.classList.contains('editing')) return;
+  if (!currentPreview) return;
+
+  const originalText = td.textContent || '';
+  td.classList.add('editing');
+  td.textContent = '';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = originalText;
+  td.appendChild(input);
+  input.focus();
+  input.select();
+
+  let finished = false;
+
+  const revert = () => {
+    if (finished) return;
+    finished = true;
+    td.classList.remove('editing');
+    td.textContent = originalText;
+  };
+
+  const commit = async () => {
+    if (finished) return;
+    finished = true;
+    const newValue = input.value;
+    if (newValue === originalText) {
+      td.classList.remove('editing');
+      td.textContent = originalText;
+      return;
+    }
+    try {
+      const response = await api.updateRowCell(currentPreview!.tableName, {
+        rowid,
+        column,
+        value: newValue
+      });
+      td.classList.remove('editing');
+      if (response.success) {
+        td.textContent = newValue;
+        const target = currentPreview!.rows.find(r => r.rowid === rowid);
+        if (target) target.values[column] = newValue;
+      } else {
+        td.textContent = originalText;
+        displayError(response.error || 'Failed to update cell');
+      }
+    } catch (error) {
+      td.classList.remove('editing');
+      td.textContent = originalText;
+      displayError(error instanceof Error ? error.message : 'Failed to update cell');
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      revert();
+    }
+  });
+  input.addEventListener('blur', revert);
+}
+
+async function handleDeleteRow(rowid: number) {
+  if (!currentPreview) return;
+  if (!confirm('Delete this row?')) return;
+  try {
+    const response = await api.deleteRow(currentPreview.tableName, rowid);
+    if (!response.success) {
+      displayError(response.error || 'Failed to delete row');
+      return;
+    }
+    await loadPreviewPage();
+    await loadDatabaseSchema();
+  } catch (error) {
+    displayError(error instanceof Error ? error.message : 'Failed to delete row');
+  }
 }
 
 // Load sample data

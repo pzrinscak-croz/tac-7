@@ -1,0 +1,245 @@
+- generic [ref=e3]:
+  - heading "Natural Language SQL Interface" [level=1] [ref=e4]
+  - generic [ref=e5]:
+    - textbox "Ask a question about your data... (e.g., 'Show me users who signed up last week')" [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - button "Query" [ref=e9] [cursor=pointer]
+        - button "Upload" [ref=e10] [cursor=pointer]
+      - button "Generate Random Query" [ref=e11] [cursor=pointer]
+  - generic [ref=e12]:
+    - heading "Available Tables" [level=3] [ref=e13]
+    - generic [ref=e14]:
+      - generic [ref=e681]:
+        - generic [ref=e682]:
+          - generic [ref=e683]:
+            - generic "Click to preview and edit this table" [ref=e684] [cursor=pointer]: users
+            - generic [ref=e685]: 20 rows, 6 columns
+          - generic [ref=e686]:
+            - button "📊 CSV" [ref=e687] [cursor=pointer]
+            - button "×" [ref=e688] [cursor=pointer]
+        - generic [ref=e689]:
+          - generic [ref=e690]: id🔢 INTEGER
+          - generic [ref=e691]: name📝 TEXT
+          - generic [ref=e692]: email📝 TEXT
+          - generic [ref=e693]: signup_date📝 TEXT
+          - generic [ref=e694]: age🔢 INTEGER
+          - generic [ref=e695]: city📝 TEXT
+      - generic [ref=e696]:
+        - generic [ref=e697]:
+          - generic [ref=e698]:
+            - generic "Click to preview and edit this table" [ref=e699] [cursor=pointer]: products
+            - generic [ref=e700]: 32 rows, 6 columns
+          - generic [ref=e701]:
+            - button "📊 CSV" [ref=e702] [cursor=pointer]
+            - button "×" [ref=e703] [cursor=pointer]
+        - generic [ref=e704]:
+          - generic [ref=e705]: product_id🔢 INTEGER
+          - generic [ref=e706]: product_name📝 TEXT
+          - generic [ref=e707]: category📝 TEXT
+          - generic [ref=e708]: price💯 REAL
+          - generic [ref=e709]: stock_quantity🔢 INTEGER
+          - generic [ref=e710]: last_restocked📝 TEXT
+  - generic [ref=e46]:
+    - generic [ref=e47]:
+      - 'heading "Preview: users" [level=2] [ref=e48]'
+      - button "×" [ref=e49] [cursor=pointer]
+    - generic [ref=e50]:
+      - generic [ref=e51]:
+        - button "+ Add Row" [ref=e52] [cursor=pointer]
+        - generic [ref=e53]: 20 rows total
+      - table [ref=e711]:
+        - rowgroup [ref=e712]:
+          - row "id name email signup_date age city" [ref=e713]:
+            - columnheader "id" [ref=e714]
+            - columnheader "name" [ref=e715]
+            - columnheader "email" [ref=e716]
+            - columnheader "signup_date" [ref=e717]
+            - columnheader "age" [ref=e718]
+            - columnheader "city" [ref=e719]
+            - columnheader [ref=e720]
+        - rowgroup [ref=e721]:
+          - row "1 EditedTestName john@example.com 2025-10-15 28 New York Delete" [ref=e722]:
+            - cell "1" [ref=e723] [cursor=pointer]
+            - cell "EditedTestName" [ref=e724] [cursor=pointer]
+            - cell "john@example.com" [ref=e725] [cursor=pointer]
+            - cell "2025-10-15" [ref=e726] [cursor=pointer]
+            - cell "28" [ref=e727] [cursor=pointer]
+            - cell "New York" [ref=e728] [cursor=pointer]
+            - cell "Delete" [ref=e729]:
+              - button "Delete" [ref=e730] [cursor=pointer]
+          - row "2 Jane Smith jane@example.com 2025-10-20 32 Los Angeles Delete" [ref=e731]:
+            - cell "2" [ref=e732] [cursor=pointer]
+            - cell "Jane Smith" [ref=e733] [cursor=pointer]
+            - cell "jane@example.com" [ref=e734] [cursor=pointer]
+            - cell "2025-10-20" [ref=e735] [cursor=pointer]
+            - cell "32" [ref=e736] [cursor=pointer]
+            - cell "Los Angeles" [ref=e737] [cursor=pointer]
+            - cell "Delete" [ref=e738]:
+              - button "Delete" [ref=e739] [cursor=pointer]
+          - row "3 Bob Johnson bob@example.com 2025-11-01 45 Chicago Delete" [ref=e740]:
+            - cell "3" [ref=e741] [cursor=pointer]
+            - cell "Bob Johnson" [ref=e742] [cursor=pointer]
+            - cell "bob@example.com" [ref=e743] [cursor=pointer]
+            - cell "2025-11-01" [ref=e744] [cursor=pointer]
+            - cell "45" [ref=e745] [cursor=pointer]
+            - cell "Chicago" [ref=e746] [cursor=pointer]
+            - cell "Delete" [ref=e747]:
+              - button "Delete" [ref=e748] [cursor=pointer]
+          - row "4 Alice Brown alice@example.com 2025-11-10 27 Houston Delete" [ref=e749]:
+            - cell "4" [ref=e750] [cursor=pointer]
+            - cell "Alice Brown" [ref=e751] [cursor=pointer]
+            - cell "alice@example.com" [ref=e752] [cursor=pointer]
+            - cell "2025-11-10" [ref=e753] [cursor=pointer]
+            - cell "27" [ref=e754] [cursor=pointer]
+            - cell "Houston" [ref=e755] [cursor=pointer]
+            - cell "Delete" [ref=e756]:
+              - button "Delete" [ref=e757] [cursor=pointer]
+          - row "5 Charlie Wilson charlie@example.com 2025-11-15 35 Phoenix Delete" [ref=e758]:
+            - cell "5" [ref=e759] [cursor=pointer]
+            - cell "Charlie Wilson" [ref=e760] [cursor=pointer]
+            - cell "charlie@example.com" [ref=e761] [cursor=pointer]
+            - cell "2025-11-15" [ref=e762] [cursor=pointer]
+            - cell "35" [ref=e763] [cursor=pointer]
+            - cell "Phoenix" [ref=e764] [cursor=pointer]
+            - cell "Delete" [ref=e765]:
+              - button "Delete" [ref=e766] [cursor=pointer]
+          - row "6 Diana Martinez diana@example.com 2025-11-20 29 Philadelphia Delete" [ref=e767]:
+            - cell "6" [ref=e768] [cursor=pointer]
+            - cell "Diana Martinez" [ref=e769] [cursor=pointer]
+            - cell "diana@example.com" [ref=e770] [cursor=pointer]
+            - cell "2025-11-20" [ref=e771] [cursor=pointer]
+            - cell "29" [ref=e772] [cursor=pointer]
+            - cell "Philadelphia" [ref=e773] [cursor=pointer]
+            - cell "Delete" [ref=e774]:
+              - button "Delete" [ref=e775] [cursor=pointer]
+          - row "7 Ethan Davis ethan@example.com 2025-11-25 38 San Antonio Delete" [ref=e776]:
+            - cell "7" [ref=e777] [cursor=pointer]
+            - cell "Ethan Davis" [ref=e778] [cursor=pointer]
+            - cell "ethan@example.com" [ref=e779] [cursor=pointer]
+            - cell "2025-11-25" [ref=e780] [cursor=pointer]
+            - cell "38" [ref=e781] [cursor=pointer]
+            - cell "San Antonio" [ref=e782] [cursor=pointer]
+            - cell "Delete" [ref=e783]:
+              - button "Delete" [ref=e784] [cursor=pointer]
+          - row "8 Fiona Garcia fiona@example.com 2025-12-01 41 San Diego Delete" [ref=e785]:
+            - cell "8" [ref=e786] [cursor=pointer]
+            - cell "Fiona Garcia" [ref=e787] [cursor=pointer]
+            - cell "fiona@example.com" [ref=e788] [cursor=pointer]
+            - cell "2025-12-01" [ref=e789] [cursor=pointer]
+            - cell "41" [ref=e790] [cursor=pointer]
+            - cell "San Diego" [ref=e791] [cursor=pointer]
+            - cell "Delete" [ref=e792]:
+              - button "Delete" [ref=e793] [cursor=pointer]
+          - row "9 George Rodriguez george@example.com 2025-12-05 33 Dallas Delete" [ref=e794]:
+            - cell "9" [ref=e795] [cursor=pointer]
+            - cell "George Rodriguez" [ref=e796] [cursor=pointer]
+            - cell "george@example.com" [ref=e797] [cursor=pointer]
+            - cell "2025-12-05" [ref=e798] [cursor=pointer]
+            - cell "33" [ref=e799] [cursor=pointer]
+            - cell "Dallas" [ref=e800] [cursor=pointer]
+            - cell "Delete" [ref=e801]:
+              - button "Delete" [ref=e802] [cursor=pointer]
+          - row "10 Hannah Lee hannah@example.com 2025-12-10 26 San Jose Delete" [ref=e803]:
+            - cell "10" [ref=e804] [cursor=pointer]
+            - cell "Hannah Lee" [ref=e805] [cursor=pointer]
+            - cell "hannah@example.com" [ref=e806] [cursor=pointer]
+            - cell "2025-12-10" [ref=e807] [cursor=pointer]
+            - cell "26" [ref=e808] [cursor=pointer]
+            - cell "San Jose" [ref=e809] [cursor=pointer]
+            - cell "Delete" [ref=e810]:
+              - button "Delete" [ref=e811] [cursor=pointer]
+          - row "11 Isaac Walker isaac@example.com 2025-12-15 42 Austin Delete" [ref=e812]:
+            - cell "11" [ref=e813] [cursor=pointer]
+            - cell "Isaac Walker" [ref=e814] [cursor=pointer]
+            - cell "isaac@example.com" [ref=e815] [cursor=pointer]
+            - cell "2025-12-15" [ref=e816] [cursor=pointer]
+            - cell "42" [ref=e817] [cursor=pointer]
+            - cell "Austin" [ref=e818] [cursor=pointer]
+            - cell "Delete" [ref=e819]:
+              - button "Delete" [ref=e820] [cursor=pointer]
+          - row "12 Julia White julia@example.com 2025-12-20 31 Jacksonville Delete" [ref=e821]:
+            - cell "12" [ref=e822] [cursor=pointer]
+            - cell "Julia White" [ref=e823] [cursor=pointer]
+            - cell "julia@example.com" [ref=e824] [cursor=pointer]
+            - cell "2025-12-20" [ref=e825] [cursor=pointer]
+            - cell "31" [ref=e826] [cursor=pointer]
+            - cell "Jacksonville" [ref=e827] [cursor=pointer]
+            - cell "Delete" [ref=e828]:
+              - button "Delete" [ref=e829] [cursor=pointer]
+          - row "13 Kevin Thompson kevin@example.com 2025-12-25 37 Fort Worth Delete" [ref=e830]:
+            - cell "13" [ref=e831] [cursor=pointer]
+            - cell "Kevin Thompson" [ref=e832] [cursor=pointer]
+            - cell "kevin@example.com" [ref=e833] [cursor=pointer]
+            - cell "2025-12-25" [ref=e834] [cursor=pointer]
+            - cell "37" [ref=e835] [cursor=pointer]
+            - cell "Fort Worth" [ref=e836] [cursor=pointer]
+            - cell "Delete" [ref=e837]:
+              - button "Delete" [ref=e838] [cursor=pointer]
+          - row "14 Laura Anderson laura@example.com 2026-01-01 30 Columbus Delete" [ref=e839]:
+            - cell "14" [ref=e840] [cursor=pointer]
+            - cell "Laura Anderson" [ref=e841] [cursor=pointer]
+            - cell "laura@example.com" [ref=e842] [cursor=pointer]
+            - cell "2026-01-01" [ref=e843] [cursor=pointer]
+            - cell "30" [ref=e844] [cursor=pointer]
+            - cell "Columbus" [ref=e845] [cursor=pointer]
+            - cell "Delete" [ref=e846]:
+              - button "Delete" [ref=e847] [cursor=pointer]
+          - row "15 Michael Chen michael@example.com 2026-01-05 34 Charlotte Delete" [ref=e848]:
+            - cell "15" [ref=e849] [cursor=pointer]
+            - cell "Michael Chen" [ref=e850] [cursor=pointer]
+            - cell "michael@example.com" [ref=e851] [cursor=pointer]
+            - cell "2026-01-05" [ref=e852] [cursor=pointer]
+            - cell "34" [ref=e853] [cursor=pointer]
+            - cell "Charlotte" [ref=e854] [cursor=pointer]
+            - cell "Delete" [ref=e855]:
+              - button "Delete" [ref=e856] [cursor=pointer]
+          - row "16 Nina Patel nina@example.com 2026-01-10 28 San Francisco Delete" [ref=e857]:
+            - cell "16" [ref=e858] [cursor=pointer]
+            - cell "Nina Patel" [ref=e859] [cursor=pointer]
+            - cell "nina@example.com" [ref=e860] [cursor=pointer]
+            - cell "2026-01-10" [ref=e861] [cursor=pointer]
+            - cell "28" [ref=e862] [cursor=pointer]
+            - cell "San Francisco" [ref=e863] [cursor=pointer]
+            - cell "Delete" [ref=e864]:
+              - button "Delete" [ref=e865] [cursor=pointer]
+          - row "17 Oliver Kim oliver@example.com 2026-01-15 36 Indianapolis Delete" [ref=e866]:
+            - cell "17" [ref=e867] [cursor=pointer]
+            - cell "Oliver Kim" [ref=e868] [cursor=pointer]
+            - cell "oliver@example.com" [ref=e869] [cursor=pointer]
+            - cell "2026-01-15" [ref=e870] [cursor=pointer]
+            - cell "36" [ref=e871] [cursor=pointer]
+            - cell "Indianapolis" [ref=e872] [cursor=pointer]
+            - cell "Delete" [ref=e873]:
+              - button "Delete" [ref=e874] [cursor=pointer]
+          - row "18 Patricia Lopez patricia@example.com 2026-01-20 39 Seattle Delete" [ref=e875]:
+            - cell "18" [ref=e876] [cursor=pointer]
+            - cell "Patricia Lopez" [ref=e877] [cursor=pointer]
+            - cell "patricia@example.com" [ref=e878] [cursor=pointer]
+            - cell "2026-01-20" [ref=e879] [cursor=pointer]
+            - cell "39" [ref=e880] [cursor=pointer]
+            - cell "Seattle" [ref=e881] [cursor=pointer]
+            - cell "Delete" [ref=e882]:
+              - button "Delete" [ref=e883] [cursor=pointer]
+          - row "19 Quinn Turner quinn@example.com 2026-01-25 25 Denver Delete" [ref=e884]:
+            - cell "19" [ref=e885] [cursor=pointer]
+            - cell "Quinn Turner" [ref=e886] [cursor=pointer]
+            - cell "quinn@example.com" [ref=e887] [cursor=pointer]
+            - cell "2026-01-25" [ref=e888] [cursor=pointer]
+            - cell "25" [ref=e889] [cursor=pointer]
+            - cell "Denver" [ref=e890] [cursor=pointer]
+            - cell "Delete" [ref=e891]:
+              - button "Delete" [ref=e892] [cursor=pointer]
+          - row "20 Rachel Green rachel@example.com 2026-02-01 32 Washington Delete" [ref=e893]:
+            - cell "20" [ref=e894] [cursor=pointer]
+            - cell "Rachel Green" [ref=e895] [cursor=pointer]
+            - cell "rachel@example.com" [ref=e896] [cursor=pointer]
+            - cell "2026-02-01" [ref=e897] [cursor=pointer]
+            - cell "32" [ref=e898] [cursor=pointer]
+            - cell "Washington" [ref=e899] [cursor=pointer]
+            - cell "Delete" [ref=e900]:
+              - button "Delete" [ref=e901] [cursor=pointer]
+      - generic [ref=e246]:
+        - button "Prev" [disabled]
+        - generic [ref=e247]: Page 1 of 1
+        - button "Next" [disabled]

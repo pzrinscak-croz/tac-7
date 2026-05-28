@@ -84,3 +84,37 @@ interface HealthCheckResponse {
   version: string;
   uptime_seconds: number;
 }
+
+// Table Preview / Row CRUD Types
+interface TablePreviewRow {
+  rowid: number;
+  values: Record<string, any>;
+}
+
+interface TablePreviewResponse {
+  table_name: string;
+  columns: string[];
+  rows: TablePreviewRow[];
+  page: number;
+  limit: number;
+  total_rows: number;
+  total_pages: number;
+  error?: string;
+}
+
+interface UpdateRowRequest {
+  rowid: number;
+  column: string;
+  value: any;
+}
+
+interface InsertRowRequest {
+  values: Record<string, any>;
+}
+
+interface RowMutationResponse {
+  success: boolean;
+  rowid?: number;
+  row_count?: number;
+  error?: string;
+}

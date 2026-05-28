@@ -1,0 +1,42 @@
+- generic [ref=e3]:
+  - heading "Natural Language SQL Interface" [level=1] [ref=e4]
+  - generic [ref=e5]:
+    - textbox "Ask a question about your data... (e.g., 'Show me users who signed up last week')" [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - button "Query" [ref=e9] [cursor=pointer]
+        - button "Upload" [ref=e10] [cursor=pointer]
+      - button "Generate Random Query" [ref=e11] [cursor=pointer]
+  - generic [ref=e12]:
+    - heading "Available Tables" [level=3] [ref=e13]
+    - generic [ref=e14]:
+      - generic [ref=e251]:
+        - generic [ref=e252]:
+          - generic [ref=e253]:
+            - generic "Click to preview and edit this table" [ref=e254] [cursor=pointer]: users
+            - generic [ref=e255]: 21 rows, 6 columns
+          - generic [ref=e256]:
+            - button "📊 CSV" [ref=e257] [cursor=pointer]
+            - button "×" [ref=e258] [cursor=pointer]
+        - generic [ref=e259]:
+          - generic [ref=e260]: id🔢 INTEGER
+          - generic [ref=e261]: name📝 TEXT
+          - generic [ref=e262]: email📝 TEXT
+          - generic [ref=e263]: signup_date📝 TEXT
+          - generic [ref=e264]: age🔢 INTEGER
+          - generic [ref=e265]: city📝 TEXT
+      - generic [ref=e266]:
+        - generic [ref=e267]:
+          - generic [ref=e268]:
+            - generic "Click to preview and edit this table" [ref=e269] [cursor=pointer]: products
+            - generic [ref=e270]: 32 rows, 6 columns
+          - generic [ref=e271]:
+            - button "📊 CSV" [ref=e272] [cursor=pointer]
+            - button "×" [ref=e273] [cursor=pointer]
+        - generic [ref=e274]:
+          - generic [ref=e275]: product_id🔢 INTEGER
+          - generic [ref=e276]: product_name📝 TEXT
+          - generic [ref=e277]: category📝 TEXT
+          - generic [ref=e278]: price💯 REAL
+          - generic [ref=e279]: stock_quantity🔢 INTEGER
+          - generic [ref=e280]: last_restocked📝 TEXT

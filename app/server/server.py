@@ -21,7 +21,12 @@ from core.data_models import (
     ColumnInfo,
     RandomQueryResponse,
     ExportRequest,
-    QueryExportRequest
+    QueryExportRequest,
+    TablePreviewResponse,
+    TablePreviewRow,
+    UpdateRowRequest,
+    InsertRowRequest,
+    RowMutationResponse
 )
 from core.file_processor import convert_csv_to_sqlite, convert_json_to_sqlite, convert_jsonl_to_sqlite
 from core.llm_processor import generate_sql, generate_random_query
@@ -34,6 +39,13 @@ from core.sql_security import (
     SQLSecurityError
 )
 from core.export_utils import generate_csv_from_data, generate_csv_from_table
+from core.table_crud import (
+    get_table_preview as crud_get_table_preview,
+    update_row_cell as crud_update_row_cell,
+    insert_row as crud_insert_row,
+    delete_row as crud_delete_row,
+    TableCRUDError
+)
 
 # Load .env file from server directory
 load_dotenv()
@@ -362,6 +374,125 @@ async def export_query_results(request: QueryExportRequest) -> Response:
         logger.error(f"[ERROR] Query export failed: {str(e)}")
         logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(500, f"Error exporting query results: {str(e)}")
+
+@app.get("/api/table/{table_name}/preview", response_model=TablePreviewResponse)
+async def get_table_preview_endpoint(
+    table_name: str, page: int = 1, limit: int = 50
+) -> TablePreviewResponse:
+    """Return a paginated preview of rows from a table, including rowid."""
+    try:
+        result = crud_get_table_preview(table_name, page=page, limit=limit)
+        response = TablePreviewResponse(
+            table_name=table_name,
+            columns=result["columns"],
+            rows=[TablePreviewRow(**r) for r in result["rows"]],
+            page=result["page"],
+            limit=result["limit"],
+            total_rows=result["total_rows"],
+            total_pages=result["total_pages"],
+        )
+        logger.info(
+            f"[SUCCESS] Table preview: {table_name}, page={result['page']}, "
+            f"rows={len(result['rows'])}, total={result['total_rows']}"
+        )
+        return response
+    except TableCRUDError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(404, msg)
+        raise HTTPException(400, msg)
+    except SQLSecurityError as e:
+        raise HTTPException(400, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Table preview failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error fetching table preview: {str(e)}")
+
+
+@app.patch("/api/table/{table_name}/row", response_model=RowMutationResponse)
+async def update_table_row(
+    table_name: str, request: UpdateRowRequest
+) -> RowMutationResponse:
+    """Update a single cell in a row identified by rowid."""
+    try:
+        result = crud_update_row_cell(
+            table_name, request.rowid, request.column, request.value
+        )
+        response = RowMutationResponse(**result)
+        logger.info(
+            f"[SUCCESS] Row update: table={table_name}, rowid={request.rowid}, "
+            f"column={request.column}, success={result.get('success')}"
+        )
+        return response
+    except TableCRUDError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(404, msg)
+        raise HTTPException(400, msg)
+    except SQLSecurityError as e:
+        raise HTTPException(400, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Row update failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error updating row: {str(e)}")
+
+
+@app.post("/api/table/{table_name}/row", response_model=RowMutationResponse)
+async def insert_table_row(
+    table_name: str, request: InsertRowRequest
+) -> RowMutationResponse:
+    """Insert a new row into the table."""
+    try:
+        result = crud_insert_row(table_name, request.values)
+        response = RowMutationResponse(**result)
+        logger.info(
+            f"[SUCCESS] Row insert: table={table_name}, rowid={result.get('rowid')}"
+        )
+        return response
+    except TableCRUDError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(404, msg)
+        raise HTTPException(400, msg)
+    except SQLSecurityError as e:
+        raise HTTPException(400, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Row insert failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error inserting row: {str(e)}")
+
+
+@app.delete("/api/table/{table_name}/row/{rowid}", response_model=RowMutationResponse)
+async def delete_table_row(table_name: str, rowid: int) -> RowMutationResponse:
+    """Delete a row by its SQLite rowid."""
+    try:
+        result = crud_delete_row(table_name, rowid)
+        response = RowMutationResponse(**result)
+        logger.info(
+            f"[SUCCESS] Row delete: table={table_name}, rowid={rowid}, "
+            f"success={result.get('success')}"
+        )
+        return response
+    except TableCRUDError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(404, msg)
+        raise HTTPException(400, msg)
+    except SQLSecurityError as e:
+        raise HTTPException(400, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Row delete failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error deleting row: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn

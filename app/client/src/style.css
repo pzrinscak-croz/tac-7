@@ -543,3 +543,145 @@ h2 {
 .divider::after {
   right: 0;
 }
+
+/* Preview Modal */
+.preview-modal-content {
+  max-width: 90vw;
+  width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-modal-content .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: hidden;
+}
+
+.preview-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-status {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.preview-table-container {
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.preview-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.preview-table tr:hover td {
+  background: #fafbfc;
+}
+
+.preview-table td.editable {
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.preview-table td.editable:hover {
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.preview-table td.editable.editing {
+  padding: 0;
+}
+
+.preview-table td.editable input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--primary-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.preview-table td.editable input:focus {
+  outline: none;
+}
+
+.preview-table td.delete-cell {
+  width: 1%;
+  text-align: center;
+}
+
+.delete-row-button {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-row-button:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.preview-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+.preview-pagination .secondary-button {
+  padding: 0.5rem 1rem;
+}
+
+.preview-pagination .secondary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+#preview-page-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  min-width: 100px;
+  text-align: center;
+}
+
+.table-name-clickable {
+  cursor: pointer;
+  color: var(--primary-color);
+}
+
+.table-name-clickable:hover {
+  text-decoration: underline;
+}

@@ -93,3 +93,32 @@ class ExportRequest(BaseModel):
 class QueryExportRequest(BaseModel):
     data: List[Dict[str, Any]] = Field(..., description="Query result data to export")
     columns: List[str] = Field(..., description="Column names for the export")
+
+# Table Preview / Row CRUD Models
+class TablePreviewRow(BaseModel):
+    rowid: int
+    values: Dict[str, Any]
+
+class TablePreviewResponse(BaseModel):
+    table_name: str
+    columns: List[str]
+    rows: List[TablePreviewRow]
+    page: int
+    limit: int
+    total_rows: int
+    total_pages: int
+    error: Optional[str] = None
+
+class UpdateRowRequest(BaseModel):
+    rowid: int
+    column: str
+    value: Optional[Any] = None
+
+class InsertRowRequest(BaseModel):
+    values: Dict[str, Any] = Field(default_factory=dict)
+
+class RowMutationResponse(BaseModel):
+    success: bool
+    rowid: Optional[int] = None
+    row_count: Optional[int] = None
+    error: Optional[str] = None
