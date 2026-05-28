@@ -1,5 +1,6 @@
 import './style.css'
 import { api } from './api/client'
+import { renderChartPanel, destroyChartPanel } from './chart'
 
 // Global state
 
@@ -191,8 +192,15 @@ function displayResults(response: QueryResponse, query: string) {
   const resultsSection = document.getElementById('results-section') as HTMLElement;
   const sqlDisplay = document.getElementById('sql-display') as HTMLDivElement;
   const resultsContainer = document.getElementById('results-container') as HTMLDivElement;
-  
+
   resultsSection.style.display = 'block';
+
+  // Tear down any previous chart panel — data changed
+  const existingChartPanel = document.getElementById('chart-panel');
+  if (existingChartPanel) {
+    destroyChartPanel(existingChartPanel);
+    existingChartPanel.remove();
+  }
   
   // Display natural language query and SQL
   sqlDisplay.innerHTML = `
@@ -235,7 +243,35 @@ function displayResults(response: QueryResponse, query: string) {
     // Create button container
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'results-header-buttons';
-    
+
+    // Create the chart panel host (hidden by default)
+    const chartPanel = document.createElement('div');
+    chartPanel.id = 'chart-panel';
+    chartPanel.className = 'chart-panel';
+    chartPanel.style.display = 'none';
+    resultsSection.appendChild(chartPanel);
+
+    let chartInitialized = false;
+
+    // Create visualize button
+    const visualizeButton = document.createElement('button');
+    visualizeButton.id = 'visualize-button';
+    visualizeButton.className = 'visualize-button secondary-button';
+    visualizeButton.innerHTML = '📈 Visualize';
+    visualizeButton.title = 'Visualize results as a chart';
+    visualizeButton.onclick = () => {
+      const isHidden = chartPanel.style.display === 'none';
+      if (isHidden) {
+        chartPanel.style.display = 'block';
+        if (!chartInitialized) {
+          renderChartPanel(chartPanel, response);
+          chartInitialized = true;
+        }
+      } else {
+        chartPanel.style.display = 'none';
+      }
+    };
+
     // Create export button
     const exportButton = document.createElement('button');
     exportButton.className = 'export-button secondary-button';
@@ -248,14 +284,15 @@ function displayResults(response: QueryResponse, query: string) {
         displayError('Failed to export results');
       }
     };
-    
+
     // Remove toggle button from its current position
     toggleButton.remove();
-    
-    // Add buttons to container
+
+    // Add buttons to container (Visualize → Export → Hide)
+    buttonContainer.appendChild(visualizeButton);
     buttonContainer.appendChild(exportButton);
     buttonContainer.appendChild(toggleButton);
-    
+
     // Add container to results header
     resultsHeader.appendChild(buttonContainer);
   }
