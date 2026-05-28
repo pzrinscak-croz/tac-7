@@ -61,3 +61,10 @@ This prompt helps you determine what documentation you should read based on the 
     - When working with upload button text or labeling
     - When implementing UI text changes for data upload functionality
     - When troubleshooting upload button display or terminology
+
+- app_docs/feature-d5bcc5c6-conversational-follow-ups.md
+  - Conditions:
+    - When working with conversational context or follow-up queries
+    - When modifying the LLM prompt builders or `QueryRequest` contract
+    - When troubleshooting the "Continuing from" context pill or its clear button
+    - When changing how previous query/SQL context is carried between requests
