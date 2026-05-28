@@ -61,3 +61,10 @@ This prompt helps you determine what documentation you should read based on the 
     - When working with upload button text or labeling
     - When implementing UI text changes for data upload functionality
     - When troubleshooting upload button display or terminology
+
+- app_docs/feature-d9a18411-data-preview-inline-editing.md
+  - Conditions:
+    - When working with the table preview modal or inline cell editing
+    - When implementing row-level CRUD endpoints (`/api/table/{name}/...`)
+    - When modifying `core/table_crud.py` or its server endpoints
+    - When troubleshooting pagination, Add Row, Delete Row, or schema row-count refresh
