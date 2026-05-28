@@ -61,6 +61,56 @@ h2 {
   margin-bottom: 2rem;
 }
 
+/* Context pill (conversational follow-ups) */
+.context-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid var(--primary-color);
+  color: var(--text-primary);
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+  max-width: 100%;
+}
+
+.context-pill-label {
+  font-weight: 500;
+  color: var(--primary-color);
+}
+
+.context-pill-query {
+  font-style: italic;
+  max-width: 60ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clear-context-button {
+  background: none;
+  border: none;
+  font-size: 1.125rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.clear-context-button:hover {
+  background: rgba(102, 126, 234, 0.2);
+  color: var(--primary-color);
+}
+
 #query-input {
   width: 100%;
   padding: 1rem;

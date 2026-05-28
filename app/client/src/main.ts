@@ -2,6 +2,38 @@ import './style.css'
 import { api } from './api/client'
 
 // Global state
+let previousQuery: string | null = null;
+let previousSql: string | null = null;
+
+const CONTEXT_PILL_TRUNCATE = 80;
+
+function setContext(query: string | null, sql: string | null) {
+  previousQuery = query && query.trim() ? query : null;
+  previousSql = sql && sql.trim() ? sql : null;
+
+  const pill = document.getElementById('context-pill') as HTMLDivElement | null;
+  const pillQuery = document.getElementById('context-pill-query') as HTMLSpanElement | null;
+  if (!pill || !pillQuery) return;
+
+  if (previousQuery && previousSql) {
+    const truncated = previousQuery.length > CONTEXT_PILL_TRUNCATE
+      ? previousQuery.slice(0, CONTEXT_PILL_TRUNCATE) + '…'
+      : previousQuery;
+    pillQuery.textContent = `"${truncated}"`;
+    pill.style.display = 'inline-flex';
+  } else {
+    pillQuery.textContent = '';
+    pill.style.display = 'none';
+  }
+}
+
+function initializeClearContextButton() {
+  const clearButton = document.getElementById('clear-context-button') as HTMLButtonElement | null;
+  if (!clearButton) return;
+  clearButton.addEventListener('click', () => {
+    setContext(null, null);
+  });
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,6 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeFileUpload();
   initializeModal();
   initializeRandomQueryButton();
+  initializeClearContextButton();
+  setContext(null, null);
   loadDatabaseSchema();
 });
 
@@ -46,11 +80,18 @@ function initializeQueryInput() {
     try {
       const response = await api.processQuery({
         query,
-        llm_provider: 'openai'  // Default to OpenAI
+        llm_provider: 'openai',  // Default to OpenAI
+        previous_query: previousQuery ?? undefined,
+        previous_sql: previousSql ?? undefined,
       });
-      
+
       displayResults(response, query);
-      
+
+      // Only update follow-up context on a fully successful query
+      if (!response.error && response.sql) {
+        setContext(query, response.sql);
+      }
+
       // Clear the input field on success
       queryInput.value = '';
     } catch (error) {
@@ -166,6 +207,7 @@ async function handleFileUpload(file: File) {
       displayError(response.error);
     } else {
       displayUploadSuccess(response);
+      setContext(null, null);
       await loadDatabaseSchema();
     }
   } catch (error) {

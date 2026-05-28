@@ -214,7 +214,9 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM users"
-            mock_openai_func.assert_called_once_with("Show all users", schema_info)
+            mock_openai_func.assert_called_once_with(
+                "Show all users", schema_info, previous_query=None, previous_sql=None
+            )
     
     @patch('core.llm_processor.generate_sql_with_anthropic')
     def test_generate_sql_anthropic_fallback(self, mock_anthropic_func):
@@ -228,7 +230,9 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM products"
-            mock_anthropic_func.assert_called_once_with("Show all products", schema_info)
+            mock_anthropic_func.assert_called_once_with(
+                "Show all products", schema_info, previous_query=None, previous_sql=None
+            )
     
     @patch('core.llm_processor.generate_sql_with_openai')
     def test_generate_sql_request_preference_openai(self, mock_openai_func):
@@ -242,7 +246,9 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM orders"
-            mock_openai_func.assert_called_once_with("Show all orders", schema_info)
+            mock_openai_func.assert_called_once_with(
+                "Show all orders", schema_info, previous_query=None, previous_sql=None
+            )
     
     @patch('core.llm_processor.generate_sql_with_anthropic')
     def test_generate_sql_request_preference_anthropic(self, mock_anthropic_func):
@@ -256,7 +262,9 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM customers"
-            mock_anthropic_func.assert_called_once_with("Show all customers", schema_info)
+            mock_anthropic_func.assert_called_once_with(
+                "Show all customers", schema_info, previous_query=None, previous_sql=None
+            )
     
     @patch('core.llm_processor.generate_sql_with_openai')
     def test_generate_sql_both_keys_openai_priority(self, mock_openai_func):
@@ -270,18 +278,168 @@ class TestLLMProcessor:
             result = generate_sql(request, schema_info)
             
             assert result == "SELECT * FROM inventory"
-            mock_openai_func.assert_called_once_with("Show inventory", schema_info)
+            mock_openai_func.assert_called_once_with(
+                "Show inventory", schema_info, previous_query=None, previous_sql=None
+            )
     
     @patch('core.llm_processor.generate_sql_with_openai')
     def test_generate_sql_only_openai_key(self, mock_openai_func):
         # Test when only OpenAI key exists
         mock_openai_func.return_value = "SELECT * FROM sales"
-        
+
         with patch.dict(os.environ, {'OPENAI_API_KEY': 'openai-key'}, clear=True):
             request = QueryRequest(query="Show sales data", llm_provider="anthropic")
             schema_info = {'tables': {}}
-            
+
             result = generate_sql(request, schema_info)
-            
+
             assert result == "SELECT * FROM sales"
-            mock_openai_func.assert_called_once_with("Show sales data", schema_info)
+            mock_openai_func.assert_called_once_with(
+                "Show sales data", schema_info, previous_query=None, previous_sql=None
+            )
+
+    @patch('core.llm_processor.OpenAI')
+    def test_generate_sql_with_openai_includes_previous_turn(self, mock_openai_class):
+        # When both previous_query and previous_sql are set, the prompt must include the Previous turn block
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "SELECT * FROM users WHERE city = 'NY'"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
+            generate_sql_with_openai(
+                "filter that by city",
+                {'tables': {}},
+                previous_query="show all users",
+                previous_sql="SELECT * FROM users",
+            )
+
+            call_args = mock_client.chat.completions.create.call_args
+            prompt = call_args[1]['messages'][1]['content']
+            assert "Previous turn" in prompt
+            assert "show all users" in prompt
+            assert "SELECT * FROM users" in prompt
+
+    @patch('core.llm_processor.Anthropic')
+    def test_generate_sql_with_anthropic_includes_previous_turn(self, mock_anthropic_class):
+        # Anthropic path: Previous turn block must appear in the prompt
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.content[0].text = "SELECT * FROM users WHERE city = 'NY'"
+        mock_client.messages.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test-key'}):
+            generate_sql_with_anthropic(
+                "filter that by city",
+                {'tables': {}},
+                previous_query="show all users",
+                previous_sql="SELECT * FROM users",
+            )
+
+            call_args = mock_client.messages.create.call_args
+            prompt = call_args[1]['messages'][0]['content']
+            assert "Previous turn" in prompt
+            assert "show all users" in prompt
+            assert "SELECT * FROM users" in prompt
+
+    @patch('core.llm_processor.OpenAI')
+    def test_generate_sql_with_openai_omits_previous_turn_when_missing(self, mock_openai_class):
+        # No Previous turn block when either field is missing or empty
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "SELECT * FROM users"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
+            # Both None
+            generate_sql_with_openai("show all users", {'tables': {}})
+            prompt = mock_client.chat.completions.create.call_args[1]['messages'][1]['content']
+            assert "Previous turn" not in prompt
+
+            # Only previous_query set
+            generate_sql_with_openai(
+                "show all users", {'tables': {}}, previous_query="x", previous_sql=None
+            )
+            prompt = mock_client.chat.completions.create.call_args[1]['messages'][1]['content']
+            assert "Previous turn" not in prompt
+
+            # Only previous_sql set
+            generate_sql_with_openai(
+                "show all users", {'tables': {}}, previous_query=None, previous_sql="SELECT 1"
+            )
+            prompt = mock_client.chat.completions.create.call_args[1]['messages'][1]['content']
+            assert "Previous turn" not in prompt
+
+            # Both empty strings
+            generate_sql_with_openai(
+                "show all users", {'tables': {}}, previous_query="", previous_sql=""
+            )
+            prompt = mock_client.chat.completions.create.call_args[1]['messages'][1]['content']
+            assert "Previous turn" not in prompt
+
+    @patch('core.llm_processor.Anthropic')
+    def test_generate_sql_with_anthropic_omits_previous_turn_when_missing(self, mock_anthropic_class):
+        # Anthropic path: no Previous turn block when either field is missing
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.content[0].text = "SELECT * FROM users"
+        mock_client.messages.create.return_value = mock_response
+
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test-key'}):
+            generate_sql_with_anthropic("show all users", {'tables': {}})
+            prompt = mock_client.messages.create.call_args[1]['messages'][0]['content']
+            assert "Previous turn" not in prompt
+
+    @patch('core.llm_processor.generate_sql_with_openai')
+    def test_generate_sql_router_forwards_previous_context(self, mock_openai_func):
+        # The router must forward previous_query and previous_sql into the provider call
+        mock_openai_func.return_value = "SELECT * FROM users WHERE city = 'NY'"
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'openai-key'}):
+            request = QueryRequest(
+                query="filter that by city",
+                llm_provider="openai",
+                previous_query="show all users",
+                previous_sql="SELECT * FROM users",
+            )
+            schema_info = {'tables': {}}
+
+            generate_sql(request, schema_info)
+
+            mock_openai_func.assert_called_once_with(
+                "filter that by city",
+                schema_info,
+                previous_query="show all users",
+                previous_sql="SELECT * FROM users",
+            )
+
+    @patch('core.llm_processor.generate_sql_with_anthropic')
+    def test_generate_sql_router_forwards_previous_context_anthropic(self, mock_anthropic_func):
+        # Anthropic branch must also forward previous_query and previous_sql
+        mock_anthropic_func.return_value = "SELECT * FROM users WHERE city = 'NY'"
+
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'anthropic-key'}, clear=True):
+            request = QueryRequest(
+                query="filter that by city",
+                llm_provider="anthropic",
+                previous_query="show all users",
+                previous_sql="SELECT * FROM users",
+            )
+            schema_info = {'tables': {}}
+
+            generate_sql(request, schema_info)
+
+            mock_anthropic_func.assert_called_once_with(
+                "filter that by city",
+                schema_info,
+                previous_query="show all users",
+                previous_sql="SELECT * FROM users",
+            )

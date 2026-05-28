@@ -325,6 +325,80 @@ class TestEndToEndSQLInjection:
             assert result['error'] is not None
 
 
+class TestPreviousContextSafety:
+    """Ensure previous_query/previous_sql fields in QueryRequest cannot bypass SQL security"""
+
+    @patch('core.llm_processor.OpenAI')
+    @patch('core.sql_processor.sqlite3.connect')
+    def test_previous_sql_field_is_inert(self, mock_connect, mock_openai_class):
+        """
+        A malicious previous_sql payload must never reach the executor.
+        It is only inlined into the LLM prompt as text, never concatenated
+        into the executed SQL.
+        """
+        from core.data_models import QueryRequest
+        from core.llm_processor import generate_sql
+        from core.sql_processor import execute_sql_safely
+
+        # Mock the LLM to return a benign SELECT regardless of what previous_sql contained
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "SELECT * FROM users"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        # Mock the executed-SQL DB connection
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchall.return_value = []
+
+        malicious_previous_sql = "DROP TABLE users; --"
+        request = QueryRequest(
+            query="show users",
+            llm_provider="openai",
+            previous_query="prior question",
+            previous_sql=malicious_previous_sql,
+        )
+
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'}):
+            sql = generate_sql(request, {'tables': {}})
+
+        # LLM returned the benign SQL — malicious payload is NOT what we execute
+        assert sql == "SELECT * FROM users"
+        assert "DROP" not in sql.upper()
+
+        # Now execute via the real safe-executor pipeline
+        result = execute_sql_safely(sql)
+        assert result['error'] is None
+
+        # And the malicious previous_sql string never made it to cursor.execute
+        executed_sql_calls = [
+            call.args[0] for call in mock_cursor.execute.call_args_list
+        ]
+        for executed in executed_sql_calls:
+            assert "DROP TABLE users" not in executed
+            assert malicious_previous_sql not in executed
+
+    def test_previous_sql_treated_as_plain_text_in_prompt(self):
+        """
+        The format_previous_turn helper must treat previous_sql as inert text:
+        whatever payload is in it appears verbatim in the prompt string and is
+        never executed.
+        """
+        from core.llm_processor import format_previous_turn
+
+        block = format_previous_turn(
+            previous_query="show users",
+            previous_sql="DROP TABLE users; --",
+        )
+        # It should be present verbatim in the block (as text inside the prompt)
+        assert "DROP TABLE users; --" in block
+        # And the block must be just a string (not executed)
+        assert isinstance(block, str)
+
+
 def test_integration_upload_malicious_filename(test_db):
     """Test that malicious filenames are handled safely during upload"""
     from core.file_processor import convert_csv_to_sqlite
