@@ -61,3 +61,10 @@ This prompt helps you determine what documentation you should read based on the 
     - When working with upload button text or labeling
     - When implementing UI text changes for data upload functionality
     - When troubleshooting upload button display or terminology
+
+- app_docs/feature-3a18505f-data-preview-inline-editing.md
+  - Conditions:
+    - When working with the table preview modal or inline cell editing
+    - When implementing row-level CRUD endpoints (preview/update/insert/delete by rowid)
+    - When modifying schema-panel table-name click behavior or pagination controls
+    - When troubleshooting persistence of cell edits, add-row, or delete-row flows
