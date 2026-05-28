@@ -543,3 +543,168 @@ h2 {
 .divider::after {
   right: 0;
 }
+
+/* Preview Modal */
+.preview-modal-content {
+  max-width: 1100px;
+  width: 95%;
+  max-height: 90vh;
+}
+
+.preview-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.preview-table-container {
+  overflow: auto;
+  max-height: 60vh;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: top;
+}
+
+.preview-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.preview-table tr:hover {
+  background: #fafbfc;
+}
+
+.preview-cell {
+  min-width: 5rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.preview-cell[contenteditable="true"]:hover {
+  background: rgba(102, 126, 234, 0.08);
+  cursor: text;
+}
+
+.preview-cell:focus {
+  outline: 2px solid var(--primary-color);
+  background: white;
+}
+
+.preview-pagination {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.preview-pagination button {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.875rem;
+  border-radius: 6px;
+  background: white;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preview-pagination button:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+}
+
+.preview-pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.preview-pagination .page-indicator {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  min-width: 6rem;
+  text-align: center;
+}
+
+.add-row-button {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.875rem;
+  border-radius: 6px;
+  background: white;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-row-button:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.delete-row-button {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.delete-row-button:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--error-color);
+}
+
+.table-name.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.table-name.clickable:hover {
+  color: var(--primary-color);
+}
+
+.close-preview-modal {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.close-preview-modal:hover {
+  background: #f0f0f0;
+}

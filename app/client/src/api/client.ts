@@ -113,6 +113,58 @@ export const api = {
     window.URL.revokeObjectURL(url);
   },
   
+  // Get paginated table preview
+  async getTablePreview(
+    tableName: string,
+    page: number,
+    limit: number
+  ): Promise<TablePreviewResponse> {
+    return apiRequest<TablePreviewResponse>(
+      `/table/${encodeURIComponent(tableName)}/preview?page=${page}&limit=${limit}`
+    );
+  },
+
+  // Update a single row's column value
+  async updateTableRow(
+    tableName: string,
+    body: RowUpdateRequest
+  ): Promise<RowMutationResponse> {
+    return apiRequest<RowMutationResponse>(
+      `/table/${encodeURIComponent(tableName)}/row`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+  },
+
+  // Insert a new row into a table
+  async insertTableRow(
+    tableName: string,
+    body: RowInsertRequest
+  ): Promise<RowMutationResponse> {
+    return apiRequest<RowMutationResponse>(
+      `/table/${encodeURIComponent(tableName)}/row`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+  },
+
+  // Delete a row by rowid
+  async deleteTableRow(
+    tableName: string,
+    rowid: number
+  ): Promise<RowMutationResponse> {
+    return apiRequest<RowMutationResponse>(
+      `/table/${encodeURIComponent(tableName)}/row/${rowid}`,
+      { method: 'DELETE' }
+    );
+  },
+
   // Export query results as CSV
   async exportQueryResults(data: any[], columns: string[]): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/export/query`, {
