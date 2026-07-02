@@ -1,7 +1,30 @@
 import './style.css'
 import { api } from './api/client'
+import { Chart, registerables } from 'chart.js'
+
+Chart.register(...registerables)
 
 // Global state
+
+// Chart visualization state (module-scoped)
+let chartInstance: Chart | null = null;
+
+// Destroy any live Chart.js instance to avoid canvas-reuse errors and stale charts
+function destroyChart() {
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+}
+
+// Remove the chart panel (if any) and destroy its chart, resetting visualization state
+function removeChartPanel() {
+  destroyChart();
+  const existingPanel = document.getElementById('chart-panel');
+  if (existingPanel) {
+    existingPanel.remove();
+  }
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -193,7 +216,17 @@ function displayResults(response: QueryResponse, query: string) {
   const resultsContainer = document.getElementById('results-container') as HTMLDivElement;
   
   resultsSection.style.display = 'block';
-  
+
+  // Reset any visualization from a previous query so it never lingers
+  removeChartPanel();
+
+  // Remove any stale Visualize button; it is re-created only for non-empty results
+  // so it stays hidden when a query returns 0 rows (acceptance criterion 9).
+  const staleVisualizeButton = document.querySelector('.visualize-button');
+  if (staleVisualizeButton) {
+    staleVisualizeButton.remove();
+  }
+
   // Display natural language query and SQL
   sqlDisplay.innerHTML = `
     <div class="query-display">
@@ -248,17 +281,339 @@ function displayResults(response: QueryResponse, query: string) {
         displayError('Failed to export results');
       }
     };
-    
+
+    // Create visualize button (only exists for non-empty results -> hidden for 0 rows)
+    const visualizeButton = document.createElement('button');
+    visualizeButton.className = 'visualize-button secondary-button';
+    visualizeButton.innerHTML = '📈 Visualize';
+    visualizeButton.title = 'Visualize results as a chart';
+    visualizeButton.onclick = () => {
+      const panel = document.getElementById('chart-panel');
+      if (panel) {
+        // Panel already exists: toggle its visibility
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      } else {
+        // First open: build and render the panel
+        buildChartPanel(response.results, response.columns);
+      }
+    };
+
     // Remove toggle button from its current position
     toggleButton.remove();
-    
+
     // Add buttons to container
     buttonContainer.appendChild(exportButton);
+    buttonContainer.appendChild(visualizeButton);
     buttonContainer.appendChild(toggleButton);
-    
+
     // Add container to results header
     resultsHeader.appendChild(buttonContainer);
   }
+}
+
+// ---- Chart visualization helpers ----
+
+// Parse a value into a finite number, or null. Strips currency symbols and
+// thousands separators so numeric columns stored as strings are not misclassified.
+function parseNumericValue(value: any): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'boolean') return null;
+  const str = String(value).trim();
+  if (str === '') return null;
+  // Remove common currency symbols, thousands separators, and surrounding whitespace
+  const cleaned = str.replace(/[$€£¥,\s]/g, '');
+  if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : null;
+}
+
+// Classify columns as numeric or categorical by inspecting actual data values.
+// A column is numeric when it has at least one non-null value AND every non-null
+// value parses to a finite number.
+function classifyColumns(results: Record<string, any>[], columns: string[]): ClassifiedColumns {
+  const numeric: string[] = [];
+  const categorical: string[] = [];
+
+  // Bound the sample size for very large result sets
+  const sample = results.length > 500 ? results.slice(0, 500) : results;
+
+  columns.forEach(col => {
+    let hasValue = false;
+    let allNumeric = true;
+
+    for (const row of sample) {
+      const raw = row[col];
+      if (raw === null || raw === undefined || String(raw).trim() === '') {
+        continue; // treat as missing
+      }
+      hasValue = true;
+      if (parseNumericValue(raw) === null) {
+        allNumeric = false;
+        break;
+      }
+    }
+
+    if (hasValue && allNumeric) {
+      numeric.push(col);
+    } else {
+      categorical.push(col);
+    }
+  });
+
+  return { numeric, categorical };
+}
+
+// Default X = first categorical column (fallback: first column overall)
+function pickDefaultX(classified: ClassifiedColumns, columns: string[]): string {
+  if (classified.categorical.length > 0) return classified.categorical[0];
+  return columns[0];
+}
+
+// Default Y = first numeric column not named id/rowid (fallback: first numeric)
+function pickDefaultY(classified: ClassifiedColumns): string {
+  const nonId = classified.numeric.find(
+    col => col.toLowerCase() !== 'id' && col.toLowerCase() !== 'rowid'
+  );
+  return nonId ?? classified.numeric[0];
+}
+
+// Build and insert the chart panel below the results container, then render.
+function buildChartPanel(results: Record<string, any>[], columns: string[]) {
+  const resultsSection = document.getElementById('results-section') as HTMLElement;
+
+  // Remove any stale panel/chart first
+  removeChartPanel();
+
+  const panel = document.createElement('div');
+  panel.id = 'chart-panel';
+  panel.className = 'chart-panel';
+
+  const classified = classifyColumns(results, columns);
+
+  // No numeric columns -> show message, no controls, no chart
+  if (classified.numeric.length === 0) {
+    const message = document.createElement('p');
+    message.className = 'chart-no-data';
+    message.textContent = 'No numeric columns available';
+    panel.appendChild(message);
+    resultsSection.appendChild(panel);
+    return;
+  }
+
+  const xColumns = classified.categorical.length > 0 ? classified.categorical : columns;
+  const defaultX = pickDefaultX(classified, columns);
+  const defaultY = pickDefaultY(classified);
+
+  // Controls row
+  const controls = document.createElement('div');
+  controls.className = 'chart-controls';
+
+  const typeSelect = createLabeledSelect('chart-type-select', 'Chart Type', [
+    { value: 'bar', label: 'Bar' },
+    { value: 'line', label: 'Line' },
+    { value: 'pie', label: 'Pie' },
+  ], 'bar');
+
+  const xSelect = createLabeledSelect(
+    'chart-x-select',
+    'X-Axis',
+    xColumns.map(c => ({ value: c, label: c })),
+    defaultX
+  );
+
+  const ySelect = createLabeledSelect(
+    'chart-y-select',
+    'Y-Axis',
+    classified.numeric.map(c => ({ value: c, label: c })),
+    defaultY
+  );
+
+  controls.appendChild(typeSelect.wrapper);
+  controls.appendChild(xSelect.wrapper);
+  controls.appendChild(ySelect.wrapper);
+
+  // Canvas container (fixed height so maintainAspectRatio:false fills it)
+  const canvasContainer = document.createElement('div');
+  canvasContainer.className = 'chart-canvas-container';
+  const canvas = document.createElement('canvas');
+  canvas.id = 'results-chart';
+  canvasContainer.appendChild(canvas);
+
+  panel.appendChild(controls);
+  panel.appendChild(canvasContainer);
+  resultsSection.appendChild(panel);
+
+  const rerender = () => {
+    renderChart(
+      results,
+      typeSelect.select.value as ChartKind,
+      xSelect.select.value,
+      ySelect.select.value
+    );
+  };
+
+  typeSelect.select.addEventListener('change', rerender);
+  xSelect.select.addEventListener('change', rerender);
+  ySelect.select.addEventListener('change', rerender);
+
+  // Initial render
+  rerender();
+}
+
+// Create a labeled <select> control, returning the wrapper and the select element.
+function createLabeledSelect(
+  id: string,
+  labelText: string,
+  options: { value: string; label: string }[],
+  selected: string
+): { wrapper: HTMLDivElement; select: HTMLSelectElement } {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'chart-control';
+
+  const label = document.createElement('label');
+  label.htmlFor = id;
+  label.textContent = labelText;
+
+  const select = document.createElement('select');
+  select.id = id;
+  select.className = 'chart-select';
+  options.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    if (opt.value === selected) option.selected = true;
+    select.appendChild(option);
+  });
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(select);
+  return { wrapper, select };
+}
+
+// Render (or re-render) the chart from the current control selections.
+function renderChart(
+  results: Record<string, any>[],
+  kind: ChartKind,
+  xColumn: string,
+  yColumn: string
+) {
+  const canvas = document.getElementById('results-chart') as HTMLCanvasElement | null;
+  if (!canvas || !xColumn || !yColumn) return;
+
+  // Always destroy the previous chart before creating a new one
+  destroyChart();
+
+  const primary = '#667eea';
+  const secondary = '#764ba2';
+
+  if (kind === 'pie') {
+    // Aggregate Y values by X label (sum), so duplicate categories combine
+    const totals = new Map<string, number>();
+    results.forEach(row => {
+      const y = parseNumericValue(row[yColumn]);
+      if (y === null) return;
+      const label = row[xColumn] !== null && row[xColumn] !== undefined ? String(row[xColumn]) : '(empty)';
+      totals.set(label, (totals.get(label) ?? 0) + y);
+    });
+
+    let entries = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
+
+    // Cap at 15 slices, grouping the remainder into "Other"
+    const MAX_SLICES = 15;
+    if (entries.length > MAX_SLICES) {
+      const top = entries.slice(0, MAX_SLICES);
+      const otherTotal = entries.slice(MAX_SLICES).reduce((sum, [, v]) => sum + v, 0);
+      top.push(['Other', otherTotal]);
+      entries = top;
+    }
+
+    const labels = entries.map(([label]) => label);
+    const data = entries.map(([, value]) => value);
+    const colors = labels.map((_, i) => pieColor(i));
+
+    chartInstance = new Chart(canvas, {
+      type: 'pie',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderColor: '#ffffff', borderWidth: 1 }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'right' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const value = ctx.parsed as number;
+                const total = data.reduce((sum, v) => sum + v, 0);
+                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                return `${ctx.label}: ${value} (${pct}%)`;
+              },
+            },
+          },
+        },
+      },
+    });
+    return;
+  }
+
+  // Bar / Line: build labels and parsed numeric data, dropping null Y rows
+  const labels: string[] = [];
+  const data: number[] = [];
+  results.forEach(row => {
+    const y = parseNumericValue(row[yColumn]);
+    if (y === null) return;
+    labels.push(row[xColumn] !== null && row[xColumn] !== undefined ? String(row[xColumn]) : '(empty)');
+    data.push(y);
+  });
+
+  chartInstance = new Chart(canvas, {
+    type: kind,
+    data: {
+      labels,
+      datasets: [{
+        label: yColumn,
+        data,
+        backgroundColor: kind === 'line' ? 'rgba(102, 126, 234, 0.2)' : primary,
+        borderColor: secondary,
+        borderWidth: kind === 'line' ? 2 : 1,
+        fill: kind === 'line',
+        tension: 0.2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top' },
+        tooltip: { enabled: true },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: xColumn },
+        },
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: yColumn },
+        },
+      },
+    },
+  });
+}
+
+// Distinct-ish colors for pie slices, cycling through the app palette
+function pieColor(index: number): string {
+  const palette = [
+    '#667eea', '#764ba2', '#28a745', '#dc3545', '#f39c12',
+    '#17a2b8', '#e83e8c', '#20c997', '#fd7e14', '#6610f2',
+    '#6f42c1', '#007bff', '#ffc107', '#e74c3c', '#1abc9c',
+    '#95a5a6',
+  ];
+  return palette[index % palette.length];
 }
 
 // Create results table
