@@ -1,0 +1,72 @@
+- generic [ref=e3]:
+  - heading "Natural Language SQL Interface" [level=1] [ref=e4]
+  - generic [ref=e5]:
+    - textbox "Ask a question about your data... (e.g., 'Show me users who signed up last week')" [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - button "Query" [ref=e9] [cursor=pointer]
+        - button "Upload" [ref=e10] [cursor=pointer]
+      - button "Generate Random Query" [ref=e11] [cursor=pointer]
+  - generic [ref=e48]:
+    - generic [ref=e49]:
+      - heading "Query Results" [level=2] [ref=e50]
+      - generic [ref=e211]:
+        - button "📊 CSV Export" [ref=e212] [cursor=pointer]
+        - button "Hide" [ref=e53] [cursor=pointer]
+    - generic [ref=e54]:
+      - generic [ref=e213]:
+        - strong [ref=e214]: "Query:"
+        - text: filter that by city = 'New York'
+      - generic [ref=e215]:
+        - strong [ref=e216]: "SQL:"
+        - code [ref=e217]: SELECT * FROM users WHERE city = 'New York';
+    - table [ref=e218]:
+      - rowgroup [ref=e219]:
+        - row "id name email signup_date age city" [ref=e220]:
+          - columnheader "id" [ref=e221]
+          - columnheader "name" [ref=e222]
+          - columnheader "email" [ref=e223]
+          - columnheader "signup_date" [ref=e224]
+          - columnheader "age" [ref=e225]
+          - columnheader "city" [ref=e226]
+      - rowgroup [ref=e227]:
+        - row "1 John Doe john@example.com 2025-10-15 28 New York" [ref=e228]:
+          - cell "1" [ref=e229]
+          - cell "John Doe" [ref=e230]
+          - cell "john@example.com" [ref=e231]
+          - cell "2025-10-15" [ref=e232]
+          - cell "28" [ref=e233]
+          - cell "New York" [ref=e234]
+  - generic [ref=e12]:
+    - heading "Available Tables" [level=3] [ref=e13]
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - generic [ref=e18]: users
+            - generic [ref=e19]: 20 rows, 6 columns
+          - generic [ref=e20]:
+            - button "📊 CSV" [ref=e21] [cursor=pointer]
+            - button "×" [ref=e22] [cursor=pointer]
+        - generic [ref=e23]:
+          - generic [ref=e24]: id🔢 INTEGER
+          - generic [ref=e25]: name📝 TEXT
+          - generic [ref=e26]: email📝 TEXT
+          - generic [ref=e27]: signup_date📝 TEXT
+          - generic [ref=e28]: age🔢 INTEGER
+          - generic [ref=e29]: city📝 TEXT
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - generic [ref=e33]: products
+            - generic [ref=e34]: 32 rows, 6 columns
+          - generic [ref=e35]:
+            - button "📊 CSV" [ref=e36] [cursor=pointer]
+            - button "×" [ref=e37] [cursor=pointer]
+        - generic [ref=e38]:
+          - generic [ref=e39]: product_id🔢 INTEGER
+          - generic [ref=e40]: product_name📝 TEXT
+          - generic [ref=e41]: category📝 TEXT
+          - generic [ref=e42]: price💯 REAL
+          - generic [ref=e43]: stock_quantity🔢 INTEGER
+          - generic [ref=e44]: last_restocked📝 TEXT
