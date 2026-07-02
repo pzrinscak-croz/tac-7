@@ -97,6 +97,30 @@ h2 {
   gap: 1rem;
 }
 
+/* Conversational follow-up context indicator */
+.context-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.context-label {
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60ch;
+}
+
+.clear-context-button {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
 /* Buttons */
 .primary-button,
 .secondary-button,

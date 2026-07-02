@@ -3,14 +3,48 @@ import { api } from './api/client'
 
 // Global state
 
+// Conversational follow-up context: last successful (query, sql) pair
+let previousQuery: string | null = null;
+let previousSql: string | null = null;
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
   initializeRandomQueryButton();
+  initializeClearContextButton();
   loadDatabaseSchema();
 });
+
+// Update the "Continuing from" context indicator based on current state
+function updateContextIndicator() {
+  const indicator = document.getElementById('context-indicator') as HTMLDivElement;
+  const label = document.getElementById('context-label') as HTMLSpanElement;
+
+  if (previousQuery) {
+    label.textContent = `Continuing from: '${previousQuery}'`;
+    indicator.style.display = 'flex';
+  } else {
+    label.textContent = '';
+    indicator.style.display = 'none';
+  }
+}
+
+// Reset conversational context to standalone mode
+function clearConversationContext() {
+  previousQuery = null;
+  previousSql = null;
+  updateContextIndicator();
+}
+
+// Wire the "Clear context" button
+function initializeClearContextButton() {
+  const clearButton = document.getElementById('clear-context-button') as HTMLButtonElement;
+  clearButton.addEventListener('click', () => {
+    clearConversationContext();
+  });
+}
 
 // Helper function to get download icon
 function getDownloadIcon(): string {
@@ -46,11 +80,20 @@ function initializeQueryInput() {
     try {
       const response = await api.processQuery({
         query,
-        llm_provider: 'openai'  // Default to OpenAI
+        llm_provider: 'openai',  // Default to OpenAI
+        previous_query: previousQuery ?? undefined,
+        previous_sql: previousSql ?? undefined,
       });
-      
+
       displayResults(response, query);
-      
+
+      // Only carry forward context from successful turns
+      if (!response.error) {
+        previousQuery = query;
+        previousSql = response.sql;
+        updateContextIndicator();
+      }
+
       // Clear the input field on success
       queryInput.value = '';
     } catch (error) {
@@ -166,6 +209,8 @@ async function handleFileUpload(file: File) {
       displayError(response.error);
     } else {
       displayUploadSuccess(response);
+      // A new dataset invalidates any conversational context
+      clearConversationContext();
       await loadDatabaseSchema();
     }
   } catch (error) {
