@@ -61,3 +61,10 @@ This prompt helps you determine what documentation you should read based on the 
     - When working with upload button text or labeling
     - When implementing UI text changes for data upload functionality
     - When troubleshooting upload button display or terminology
+
+- app_docs/feature-ed38128c-conversational-follow-ups.md
+  - Conditions:
+    - When working with conversational follow-up or query context features
+    - When modifying the LLM prompt builders or previous-turn context in llm_processor
+    - When working with the QueryRequest previous_query/previous_sql fields
+    - When troubleshooting the "Continuing from" context indicator or Clear context button
