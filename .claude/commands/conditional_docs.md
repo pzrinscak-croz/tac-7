@@ -61,3 +61,10 @@ This prompt helps you determine what documentation you should read based on the 
     - When working with upload button text or labeling
     - When implementing UI text changes for data upload functionality
     - When troubleshooting upload button display or terminology
+
+- app_docs/feature-b4247189-chart-visualization.md
+  - Conditions:
+    - When working with chart or data visualization functionality
+    - When implementing or modifying Chart.js integration
+    - When working with query result column classification (numeric vs categorical)
+    - When troubleshooting the Visualize button, chart panel, or axis dropdowns
