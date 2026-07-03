@@ -3,14 +3,48 @@ import { api } from './api/client'
 
 // Global state
 
+// Conversational context: the last *successful* query/SQL pair, sent with the
+// next query so the LLM can interpret follow-ups like "now filter that by city".
+let conversationContext: { query: string; sql: string } | null = null;
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
   initializeRandomQueryButton();
+  initializeClearContextButton();
   loadDatabaseSchema();
 });
+
+// Show/hide the "Continuing from" label based on the current context
+function updateContextIndicator() {
+  const indicator = document.getElementById('context-indicator') as HTMLDivElement;
+  const label = document.getElementById('context-label') as HTMLSpanElement;
+
+  if (conversationContext) {
+    // Truncate long queries for display; the full text is still sent to the server
+    const query = conversationContext.query;
+    const displayQuery = query.length > 80 ? `${query.slice(0, 77)}...` : query;
+    label.textContent = `Continuing from: '${displayQuery}'`;
+    indicator.style.display = 'flex';
+  } else {
+    label.textContent = '';
+    indicator.style.display = 'none';
+  }
+}
+
+// Reset to standalone mode and hide the label
+function clearConversationContext() {
+  conversationContext = null;
+  updateContextIndicator();
+}
+
+// Wire the "Clear context" button
+function initializeClearContextButton() {
+  const clearButton = document.getElementById('clear-context-button') as HTMLButtonElement;
+  clearButton.addEventListener('click', () => clearConversationContext());
+}
 
 // Helper function to get download icon
 function getDownloadIcon(): string {
@@ -44,13 +78,27 @@ function initializeQueryInput() {
     queryButton.innerHTML = '<span class="loading"></span>';
     
     try {
-      const response = await api.processQuery({
+      const request: QueryRequest = {
         query,
         llm_provider: 'openai'  // Default to OpenAI
-      });
-      
+      };
+
+      // Include conversational context when active (follow-up mode)
+      if (conversationContext) {
+        request.previous_query = conversationContext.query;
+        request.previous_sql = conversationContext.sql;
+      }
+
+      const response = await api.processQuery(request);
+
       displayResults(response, query);
-      
+
+      // Only carry a successful query forward as context; failed queries must not poison follow-ups
+      if (!response.error) {
+        conversationContext = { query, sql: response.sql };
+        updateContextIndicator();
+      }
+
       // Clear the input field on success
       queryInput.value = '';
     } catch (error) {
@@ -165,6 +213,8 @@ async function handleFileUpload(file: File) {
     if (response.error) {
       displayError(response.error);
     } else {
+      // A new dataset may change the schema, so start conversational context fresh
+      clearConversationContext();
       displayUploadSuccess(response);
       await loadDatabaseSchema();
     }

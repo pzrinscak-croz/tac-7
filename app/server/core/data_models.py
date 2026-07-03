@@ -19,6 +19,8 @@ class QueryRequest(BaseModel):
     query: str = Field(..., description="Natural language query")
     llm_provider: Literal["openai", "anthropic"] = "openai"
     table_name: Optional[str] = None  # If querying specific table
+    previous_query: Optional[str] = Field(None, description="Previous natural language query for conversational context")
+    previous_sql: Optional[str] = Field(None, description="SQL generated for the previous query")
 
 class QueryResponse(BaseModel):
     sql: str
