@@ -61,3 +61,10 @@ This prompt helps you determine what documentation you should read based on the 
     - When working with upload button text or labeling
     - When implementing UI text changes for data upload functionality
     - When troubleshooting upload button display or terminology
+
+- app_docs/feature-315eff9d-chart-visualization.md
+  - Conditions:
+    - When working with chart or data visualization features
+    - When implementing or modifying Chart.js integration
+    - When working with column classification (numeric vs categorical) or axis selection
+    - When troubleshooting empty charts, flat lines, zero-height bars, or canvas reuse errors
