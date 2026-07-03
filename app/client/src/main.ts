@@ -1,7 +1,28 @@
 import './style.css'
 import { api } from './api/client'
+import type Chart from 'chart.js/auto'
+import { buildChartControls, renderChart } from './chart'
 
 // Global state
+
+// Active Chart.js instance (destroyed/recreated on re-render and reset per query)
+let activeChart: Chart | null = null;
+
+// Reset the chart panel and destroy any active Chart.js instance.
+function resetChartPanel() {
+  if (activeChart) {
+    activeChart.destroy();
+    activeChart = null;
+  }
+  const chartContainer = document.getElementById('chart-container');
+  if (chartContainer) {
+    chartContainer.style.display = 'none';
+  }
+  const chartControls = document.getElementById('chart-controls');
+  if (chartControls) {
+    chartControls.innerHTML = '';
+  }
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -193,7 +214,10 @@ function displayResults(response: QueryResponse, query: string) {
   const resultsContainer = document.getElementById('results-container') as HTMLDivElement;
   
   resultsSection.style.display = 'block';
-  
+
+  // Reset any chart panel / Chart.js instance from a previous query
+  resetChartPanel();
+
   // Display natural language query and SQL
   sqlDisplay.innerHTML = `
     <div class="query-display">
@@ -217,21 +241,23 @@ function displayResults(response: QueryResponse, query: string) {
   
   // Initialize toggle button
   const toggleButton = document.getElementById('toggle-results') as HTMLButtonElement;
+  const resultsHeader = document.querySelector('.results-header') as HTMLElement;
+
+  // Remove any button container left over from a previous query so stale
+  // Export/Visualize buttons never persist into an error or zero-row result
+  // (acceptance criterion 9: Visualize is hidden when there are no rows).
+  const existingButtonContainer = resultsHeader.querySelector('.results-header-buttons');
+  if (existingButtonContainer) {
+    existingButtonContainer.remove();
+  }
+
   toggleButton.addEventListener('click', () => {
     resultsContainer.style.display = resultsContainer.style.display === 'none' ? 'block' : 'none';
     toggleButton.textContent = resultsContainer.style.display === 'none' ? 'Show' : 'Hide';
   });
-  
-  // Add export button if results exist
+
+  // Add export/visualize buttons if results exist
   if (!response.error && response.results.length > 0) {
-    const resultsHeader = document.querySelector('.results-header') as HTMLElement;
-    
-    // Remove existing button container if any
-    const existingButtonContainer = resultsHeader.querySelector('.results-header-buttons');
-    if (existingButtonContainer) {
-      existingButtonContainer.remove();
-    }
-    
     // Create button container
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'results-header-buttons';
@@ -248,17 +274,62 @@ function displayResults(response: QueryResponse, query: string) {
         displayError('Failed to export results');
       }
     };
-    
+
+    // Create visualize button (only present when there are result rows)
+    const visualizeButton = document.createElement('button');
+    visualizeButton.className = 'visualize-button secondary-button';
+    visualizeButton.innerHTML = '📈 Visualize';
+    visualizeButton.title = 'Visualize results as a chart';
+    visualizeButton.onclick = () => {
+      toggleChartPanel(response.results, response.columns);
+    };
+
     // Remove toggle button from its current position
     toggleButton.remove();
-    
+
     // Add buttons to container
     buttonContainer.appendChild(exportButton);
+    buttonContainer.appendChild(visualizeButton);
     buttonContainer.appendChild(toggleButton);
     
     // Add container to results header
     resultsHeader.appendChild(buttonContainer);
+  } else if (!resultsHeader.contains(toggleButton)) {
+    // Error / zero-row result: the toggle button may have been detached along
+    // with the old button container above — re-attach it standalone so Hide
+    // still works, without any Export/Visualize buttons.
+    resultsHeader.appendChild(toggleButton);
   }
+}
+
+// Toggle the chart panel visibility, building controls + chart on first open.
+function toggleChartPanel(results: Record<string, any>[], columns: string[]) {
+  const chartContainer = document.getElementById('chart-container') as HTMLDivElement;
+  const chartControls = document.getElementById('chart-controls') as HTMLDivElement;
+  const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
+
+  const isHidden = chartContainer.style.display === 'none' || chartContainer.style.display === '';
+
+  if (!isHidden) {
+    // Currently visible -> hide and tear down the chart instance.
+    chartContainer.style.display = 'none';
+    if (activeChart) {
+      activeChart.destroy();
+      activeChart = null;
+    }
+    return;
+  }
+
+  // Show the panel and (re)build the controls + chart.
+  chartContainer.style.display = 'block';
+
+  const canvasWrapper = canvas.parentElement as HTMLElement;
+  const hasChart = buildChartControls(chartControls, results, columns, (chartType, xCol, yCol) => {
+    activeChart = renderChart(canvas, results, xCol, yCol, chartType, activeChart);
+  });
+
+  // Hide the canvas entirely when there are no numeric columns to chart.
+  canvasWrapper.style.display = hasChart ? 'block' : 'none';
 }
 
 // Create results table

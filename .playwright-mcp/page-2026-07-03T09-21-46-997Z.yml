@@ -1,0 +1,54 @@
+- generic [ref=f2e3]:
+  - heading "Natural Language SQL Interface" [level=1] [ref=f2e4]
+  - generic [ref=f2e5]:
+    - textbox "Ask a question about your data... (e.g., 'Show me users who signed up last week')" [ref=f2e6]
+    - generic [ref=f2e7]:
+      - generic [ref=f2e8]:
+        - button "Query" [ref=f2e9] [cursor=pointer]
+        - button "Upload" [ref=f2e10] [cursor=pointer]
+      - button "Generate Random Query" [ref=f2e11] [cursor=pointer]
+  - generic [ref=f2e45]:
+    - generic [ref=f2e46]:
+      - heading "Query Results" [level=2] [ref=f2e47]
+      - button "Hide" [ref=f2e51] [cursor=pointer]
+    - generic [ref=f2e52]:
+      - generic [ref=f2e161]:
+        - strong [ref=f2e162]: "Query:"
+        - text: Show me all products with a price of -1
+      - generic [ref=f2e163]:
+        - strong [ref=f2e164]: "SQL:"
+        - code [ref=f2e165]: SELECT * FROM products WHERE price = -1 LIMIT 100;
+    - paragraph [ref=f2e166]: No results found.
+  - generic [ref=f2e12]:
+    - heading "Available Tables" [level=3] [ref=f2e13]
+    - generic [ref=f2e14]:
+      - generic [ref=f2e15]:
+        - generic [ref=f2e16]:
+          - generic [ref=f2e17]:
+            - generic [ref=f2e18]: users
+            - generic [ref=f2e19]: 20 rows, 6 columns
+          - generic [ref=f2e20]:
+            - button "📊 CSV" [ref=f2e21] [cursor=pointer]
+            - button "×" [ref=f2e22] [cursor=pointer]
+        - generic [ref=f2e23]:
+          - generic [ref=f2e24]: id🔢 INTEGER
+          - generic [ref=f2e25]: name📝 TEXT
+          - generic [ref=f2e26]: email📝 TEXT
+          - generic [ref=f2e27]: signup_date📝 TEXT
+          - generic [ref=f2e28]: age🔢 INTEGER
+          - generic [ref=f2e29]: city📝 TEXT
+      - generic [ref=f2e30]:
+        - generic [ref=f2e31]:
+          - generic [ref=f2e32]:
+            - generic [ref=f2e33]: products
+            - generic [ref=f2e34]: 32 rows, 6 columns
+          - generic [ref=f2e35]:
+            - button "📊 CSV" [ref=f2e36] [cursor=pointer]
+            - button "×" [ref=f2e37] [cursor=pointer]
+        - generic [ref=f2e38]:
+          - generic [ref=f2e39]: product_id🔢 INTEGER
+          - generic [ref=f2e40]: product_name📝 TEXT
+          - generic [ref=f2e41]: category📝 TEXT
+          - generic [ref=f2e42]: price💯 REAL
+          - generic [ref=f2e43]: stock_quantity🔢 INTEGER
+          - generic [ref=f2e44]: last_restocked📝 TEXT

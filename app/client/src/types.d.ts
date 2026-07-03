@@ -76,6 +76,14 @@ interface RandomQueryResponse {
   error?: string;
 }
 
+// Chart Visualization Types
+type ChartType = 'bar' | 'line' | 'pie';
+
+interface ColumnClassification {
+  numeric: string[];
+  categorical: string[];
+}
+
 // Health Check Types
 interface HealthCheckResponse {
   status: "ok" | "error";
